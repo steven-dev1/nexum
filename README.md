@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Nexum
 
-## Getting Started
+Plataforma para conjuntos residenciales (propiedad horizontal en Colombia).
+Primera fase: **servicios al residente** — paquetería, reserva de zonas comunes,
+asambleas y recordatorios, y comunicados. Seguridad y acceso viene después.
 
-First, run the development server:
+- **Web:** Next.js 16 (App Router, Cache Components) + Tailwind CSS 4
+- **Backend:** Supabase (Auth, Postgres con RLS)
+- **Diseño:** azul eléctrico `#1D4ED8` + amarillo `#FACC15`, fondo `#F8FAFC`, con modo oscuro
+- **Después:** app móvil en React Native
+
+## Puesta en marcha
 
 ```bash
+npm install
+cp .env.example .env.local   # completa URL y publishable key de Supabase
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Base de datos
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Aplica `supabase/migrations/20261111000000_servicios_residente.sql`
+   (SQL Editor de Supabase, o `supabase db push` con la CLI enlazada al proyecto).
+2. Opcional, solo desarrollo: `supabase/seed.sql` (unidades y zonas de ejemplo).
+3. Regístrate en la app y promociona tu usuario a administrador:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```sql
+update public.profiles
+set role = 'admin'
+where id = (select id from auth.users where email = 'tu@correo.com');
+```
 
-## Learn More
+Roles: `admin` (administración), `porteria`, `residente`. Los residentes necesitan una
+`unit_id` asignada en `profiles` para reservar y ver sus paquetes.
 
-To learn more about Next.js, take a look at the following resources:
+## Módulos
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Ruta | Residente | Portería | Admin |
+| --- | --- | --- | --- |
+| `/paqueteria` | ve los de su unidad | registra y entrega | igual que portería |
+| `/reservas` | reserva y cancela las suyas | cancela cualquiera | cancela cualquiera |
+| `/asambleas` | consulta | consulta | convoca, cancela, programa recordatorios |
+| `/comunicados` | lee y marca leído (segmentado por torre) | lee | publica |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Pendiente
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Envío real de recordatorios y notificaciones de paquetes (Edge Function + `pg_cron`,
+  WhatsApp/correo/push). Hoy los recordatorios se guardan en `assembly_reminders`.
+- Pantalla de administración de usuarios, unidades y zonas comunes.
+- Verificación de quórum y votación en asambleas.
+- Seguridad y acceso: visitantes con QR, domiciliarios, placas.

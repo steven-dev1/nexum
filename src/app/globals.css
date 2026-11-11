@@ -1,26 +1,94 @@
 @import "tailwindcss";
 
+/* Modo oscuro por clase (.dark en <html>), con respaldo en prefers-color-scheme vía script inicial. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Paleta Nexum — Azul eléctrico + amarillo (opción 8).
+ * Principal #1D4ED8 · Acento #FACC15 · Fondo claro #F8FAFC
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --line: #e2e8f0;
+  --ink: #0f172a;
+  --muted: #475569;
+
+  --primary: #1d4ed8;
+  --primary-hover: #1e40af;
+  --primary-ink: #1d4ed8; /* color de enlaces y texto de marca */
+  --on-primary: #ffffff;
+  --primary-soft: #dbeafe;
+
+  --accent: #facc15;
+  --accent-ink: #422006; /* texto sobre amarillo */
+  --accent-soft: #fef9c3;
+
+  --success: #15803d;
+  --success-soft: #dcfce7;
+  --danger: #b91c1c;
+  --danger-soft: #fee2e2;
+
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0b1220;
+  --surface: #111a2e;
+  --surface-2: #17223a;
+  --line: #26334f;
+  --ink: #e8eef9;
+  --muted: #9aa9c4;
+
+  --primary: #2563eb;
+  --primary-hover: #3b82f6;
+  --primary-ink: #7ca8ff;
+  --on-primary: #ffffff;
+  --primary-soft: #172554;
+
+  --accent: #facc15;
+  --accent-ink: #422006;
+  --accent-soft: #3a3208;
+
+  --success: #4ade80;
+  --success-soft: #0f2e1c;
+  --danger: #f87171;
+  --danger-soft: #3b1414;
+
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-ink: var(--primary-ink);
+  --color-on-primary: var(--on-primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
