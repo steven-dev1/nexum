@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { ActionForm } from "@/components/action-form";
-import { Badge, Card, Empty, btnGhost, btnSm, inputCls } from "@/components/ui";
+import { Suspense } from "react";
+import { Badge, Card, ContentSkeleton, Empty } from "@/components/ui";
 import { getProfile, roleLabel, unitLabel, type Role } from "@/lib/auth";
 import { fmtDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { updateUser } from "./actions";
+import { UserRowForm } from "./user-row-form";
 
 export const metadata: Metadata = { title: "Usuarios" };
 
@@ -17,7 +17,15 @@ type UserRow = {
   created_at: string;
 };
 
-export default async function UsuariosPage() {
+export default function UsuariosPage() {
+  return (
+    <Suspense fallback={<ContentSkeleton />}>
+      <UsuariosContent />
+    </Suspense>
+  );
+}
+
+async function UsuariosContent() {
   const me = await getProfile();
   const supabase = await createClient();
 
@@ -30,15 +38,18 @@ export default async function UsuariosPage() {
   ]);
 
   const users = (usersRes.data ?? []) as UserRow[];
-  const units = unitsRes.data ?? [];
+  const units = (unitsRes.data ?? []).map((u) => ({ id: u.id as string, label: unitLabel(u) }));
   const withoutUnit = users.filter((u) => u.role === "residente" && !u.unit_id).length;
 
   return (
     <Card>
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <div className="mb-1 flex flex-wrap items-center gap-2">
         <h2 className="text-base font-semibold text-ink">{users.length} usuarios</h2>
         {withoutUnit > 0 && <Badge tone="accent">{withoutUnit} residentes sin unidad</Badge>}
       </div>
+      <p className="mb-4 text-sm text-muted">
+        Los residentes necesitan una unidad para reservar y recibir paquetes. Administración y portería no tienen unidad.
+      </p>
 
       {users.length === 0 ? (
         <Empty>Aún no hay usuarios registrados.</Empty>
@@ -59,40 +70,11 @@ export default async function UsuariosPage() {
                   <Badge tone={u.role === "residente" ? "neutral" : "accent"}>{roleLabel[u.role]}</Badge>
                 </div>
 
-                <ActionForm
-                  action={updateUser}
-                  submitLabel="Guardar"
-                  pendingLabel="…"
-                  className="mt-3 flex flex-wrap items-center gap-2"
-                  buttonClassName={`${btnGhost} ${btnSm}`}
-                >
-                  <input type="hidden" name="id" value={u.id} />
-                  <select
-                    name="role"
-                    defaultValue={u.role}
-                    disabled={isMe}
-                    aria-label="Rol"
-                    title={isMe ? "No puedes cambiar tu propio rol" : undefined}
-                    className={`${inputCls} !w-auto`}
-                  >
-                    <option value="residente">Residente</option>
-                    <option value="porteria">Portería</option>
-                    <option value="admin">Administración</option>
-                  </select>
-                  <select
-                    name="unit_id"
-                    defaultValue={u.unit_id ?? ""}
-                    aria-label="Unidad"
-                    className={`${inputCls} !w-auto`}
-                  >
-                    <option value="">Sin unidad</option>
-                    {units.map((un) => (
-                      <option key={un.id} value={un.id}>
-                        {unitLabel(un)}
-                      </option>
-                    ))}
-                  </select>
-                </ActionForm>
+                {isMe ? (
+                  <p className="mt-2 text-xs text-muted">No puedes cambiar tu propio rol.</p>
+                ) : (
+                  <UserRowForm id={u.id} role={u.role} unitId={u.unit_id} units={units} isMe={false} />
+                )}
               </li>
             );
           })}

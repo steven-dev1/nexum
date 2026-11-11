@@ -88,7 +88,26 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+/* En la capa base para que las utilidades (p. ej. el anillo de los campos) puedan reemplazarlo. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Cursor de mano en todo lo que se puede pulsar (Tailwind 4 deja `default` en botones). */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  select:not(:disabled),
+  label:has(> input[type="checkbox"]),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
 }

@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
+import { Modal } from "@/components/modal";
 import {
   Badge,
   Card,
+  ContentSkeleton,
   Empty,
   Field,
   PageHeader,
-  SectionTitle,
+  Select,
   btnGhost,
   btnSm,
   inputCls,
@@ -109,12 +112,31 @@ function ReadReceipts({
   );
 }
 
-export default async function ComunicadosPage() {
+export default function ComunicadosPage() {
+  return (
+    <>
+      <PageHeader
+        title="Comunicados"
+        description="Avisos de la administración para todo el conjunto o para tu torre."
+        action={
+          <Suspense fallback={null}>
+            <NewAnnouncement />
+          </Suspense>
+        }
+      />
+      <Suspense fallback={<ContentSkeleton />}>
+        <ComunicadosContent />
+      </Suspense>
+    </>
+  );
+}
+
+async function ComunicadosContent() {
   const profile = await getProfile();
   const admin = isAdmin(profile);
   const supabase = await createClient();
 
-  const [listRes, readsRes, towersRes] = await Promise.all([
+  const [listRes, readsRes] = await Promise.all([
     supabase
       .from("announcements")
       .select("id, title, body, audience, tower, pinned, published_at")
@@ -122,12 +144,10 @@ export default async function ComunicadosPage() {
       .order("published_at", { ascending: false })
       .limit(30),
     supabase.from("announcement_reads").select("announcement_id").eq("user_id", profile.id),
-    admin ? supabase.from("units").select("tower") : Promise.resolve({ data: [] as { tower: string }[] }),
   ]);
 
   const items = (listRes.data ?? []) as Announcement[];
   const read = new Set((readsRes.data ?? []).map((r) => r.announcement_id as string));
-  const towers = [...new Set((towersRes.data ?? []).map((u) => u.tower).filter(Boolean))].sort();
 
   // Solo administración: quién leyó cada comunicado (entre los residentes a quienes va dirigido).
   let residents: Resident[] = [];
@@ -154,12 +174,7 @@ export default async function ComunicadosPage() {
 
   return (
     <>
-      <PageHeader
-        title="Comunicados"
-        description="Avisos de la administración para todo el conjunto o para tu torre."
-      />
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+      <div>
         <div className="space-y-4">
           {items.length === 0 ? (
             <Card>
@@ -201,43 +216,59 @@ export default async function ComunicadosPage() {
             })
           )}
         </div>
-
-        {admin && (
-          <Card className="h-fit lg:sticky lg:top-8">
-            <SectionTitle>Publicar comunicado</SectionTitle>
-            <ActionForm action={publishAnnouncement} submitLabel="Publicar" variant="accent">
-              <Field label="Título">
-                <input name="title" required className={inputCls} />
-              </Field>
-              <Field label="Mensaje">
-                <textarea name="body" rows={5} required className={inputCls} />
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Dirigido a">
-                  <select name="audience" defaultValue="todos" className={inputCls}>
-                    <option value="todos">Todos</option>
-                    <option value="torre">Una torre</option>
-                  </select>
-                </Field>
-                <Field label="Torre">
-                  <select name="tower" defaultValue="" className={inputCls}>
-                    <option value="">—</option>
-                    {towers.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-              <label className="flex items-center gap-2 text-sm text-ink">
-                <input type="checkbox" name="pinned" className="size-4 accent-[var(--primary)]" />
-                Fijar arriba
-              </label>
-            </ActionForm>
-          </Card>
-        )}
       </div>
     </>
+  );
+}
+
+/** Botón + modal para publicar: solo administración. */
+async function NewAnnouncement() {
+  const profile = await getProfile();
+  if (!isAdmin(profile)) return null;
+
+  const supabase = await createClient();
+  const { data } = await supabase.from("units").select("tower");
+  const towers = [...new Set((data ?? []).map((u) => u.tower as string).filter(Boolean))].sort();
+
+  return (
+    <Modal
+      title="Nuevo comunicado"
+      description="Los residentes lo verán en su panel y podrás seguir quién lo leyó."
+      icon="megaphone"
+      trigger="Nuevo comunicado"
+      plus
+      size="lg"
+    >
+      <ActionForm action={publishAnnouncement} submitLabel="Publicar" pendingLabel="Publicando…" variant="accent">
+        <Field label="Título">
+          <input name="title" required placeholder="Corte de agua programado" className={inputCls} autoFocus />
+        </Field>
+        <Field label="Mensaje">
+          <textarea name="body" rows={7} required className={inputCls} />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Dirigido a">
+            <Select name="audience" defaultValue="todos">
+              <option value="todos">Todo el conjunto</option>
+              <option value="torre">Una torre</option>
+            </Select>
+          </Field>
+          <Field label="Torre (si va a una sola)">
+            <Select name="tower" defaultValue="">
+              <option value="">—</option>
+              {towers.map((t) => (
+                <option key={t} value={t}>
+                  Torre {t}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-ink">
+          <input type="checkbox" name="pinned" className="size-4 accent-[var(--primary)]" />
+          Fijar arriba de los demás comunicados
+        </label>
+      </ActionForm>
+    </Modal>
   );
 }

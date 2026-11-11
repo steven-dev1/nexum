@@ -1,27 +1,57 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 
+/** Estilo común de campos (input, textarea, select y disparadores de los selectores). */
 export const inputCls =
-  "w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-primary";
-export const labelCls = "mb-1 block text-sm font-medium text-ink";
+  "block w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 transition-[border-color,box-shadow] hover:border-muted/50 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60";
+export const labelCls = "mb-1.5 block text-[13px] font-semibold text-ink";
 
 const btnBase =
-  "inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-[background-color,filter,box-shadow] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100";
 export const btnPrimary = `${btnBase} bg-primary text-on-primary hover:bg-primary-hover`;
 export const btnAccent = `${btnBase} bg-accent text-accent-ink hover:brightness-95`;
 export const btnGhost = `${btnBase} border border-line bg-surface text-ink hover:bg-surface-2`;
-export const btnSm = "!px-3 !py-1.5 !text-xs";
+export const btnSm = "!rounded-lg !px-3 !py-1.5 !text-xs";
+
+/** <select> nativo con el estilo de la app y flecha propia (sirve en claro y oscuro). */
+export function Select({ className = "", children, ...props }: ComponentProps<"select">) {
+  return (
+    <div className="relative">
+      <select {...props} className={`${inputCls} cursor-pointer appearance-none pr-10 ${className}`}>
+        {children}
+      </select>
+      <svg
+        className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </div>
+  );
+}
 
 export function PageHeader({
   title,
   description,
+  action,
 }: {
   title: string;
   description?: string;
+  /** Botón principal de la página (p. ej. abrir el modal de creación). */
+  action?: ReactNode;
 }) {
   return (
-    <header className="mb-6">
-      <h1 className="text-2xl font-bold tracking-tight text-ink md:text-3xl">{title}</h1>
-      {description && <p className="mt-1 text-sm text-muted md:text-base">{description}</p>}
+    <header className="mb-6 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+      <div className="min-w-0 flex-1 basis-64">
+        <h1 className="text-2xl font-bold tracking-tight text-ink md:text-3xl">{title}</h1>
+        {description && <p className="mt-1 text-sm text-muted md:text-base">{description}</p>}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
     </header>
   );
 }
@@ -78,10 +108,13 @@ export function Empty({ children }: { children: ReactNode }) {
 
 export function Field({
   label,
+  hint,
   children,
   className = "",
 }: {
   label: string;
+  /** Texto de ayuda bajo el campo. */
+  hint?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
@@ -89,7 +122,18 @@ export function Field({
     <label className={`block ${className}`}>
       <span className={labelCls}>{label}</span>
       {children}
+      {hint && <span className="mt-1.5 block text-xs leading-5 text-muted">{hint}</span>}
     </label>
+  );
+}
+
+/** Relleno del contenido dinámico de una página (el título y la estructura ya están en el shell). */
+export function ContentSkeleton() {
+  return (
+    <div className="animate-pulse space-y-4" aria-hidden>
+      <div className="h-28 rounded-xl bg-surface-2" />
+      <div className="h-44 rounded-xl bg-surface-2" />
+    </div>
   );
 }
 

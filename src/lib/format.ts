@@ -22,6 +22,10 @@ export const fmtCop = (n: number) => cop.format(n);
 /** "HH:MM:SS" de Postgres → "HH:MM". */
 export const hhmm = (t: string) => t.slice(0, 5);
 
+/** Horario de una zona; si cierra a la misma hora o antes de abrir, cierra al día siguiente. */
+export const fmtHours = (open: string, close: string) =>
+  `${hhmm(open)} – ${hhmm(close)}${close <= open ? " (día siguiente)" : ""}`;
+
 /** Fecha de hoy en Colombia como YYYY-MM-DD (para atributos `min` de inputs). */
 export const todayBogota = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());

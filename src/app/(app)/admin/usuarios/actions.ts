@@ -13,17 +13,21 @@ export async function updateUser(_prev: ActionState, formData: FormData): Promis
   if (!isAdmin(me)) return { error: "Solo la administración gestiona usuarios." };
 
   const id = text(formData, "id");
-  const role = text(formData, "role") as Role;
-  const unitId = text(formData, "unit_id") || null;
   if (!id) return { error: "Usuario inválido." };
 
-  // Evita que un administrador se quite a sí mismo el rol y deje el conjunto sin admin.
-  // (El select de su propia fila va deshabilitado, así que no envía `role`.)
-  const patch: { role?: Role; unit_id: string | null } = { unit_id: unitId };
+  // Un administrador no puede cambiar su propio rol (evita dejar el conjunto sin admin);
+  // el select de su fila va deshabilitado y no envía `role`.
+  let role: Role = me.role;
   if (id !== me.id) {
+    role = text(formData, "role") as Role;
     if (!ROLES.includes(role)) return { error: "Rol inválido." };
-    patch.role = role;
   }
+
+  // Administración y portería no pertenecen a una unidad (también lo exige la BD).
+  const unitId = role === "residente" ? text(formData, "unit_id") || null : null;
+
+  const patch: { role?: Role; unit_id: string | null } = { unit_id: unitId };
+  if (id !== me.id) patch.role = role;
 
   const supabase = await createClient();
   const { data, error } = await supabase.from("profiles").update(patch).eq("id", id).select("id");

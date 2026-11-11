@@ -11,6 +11,14 @@ const int = (fd: FormData, key: string) => {
   return v === "" ? null : Number(v);
 };
 
+/** Minutos que dura la franja diaria; si cierra antes de abrir, cruza la medianoche. */
+function windowMinutes(open: string, close: string) {
+  const [oh, om] = open.split(":").map(Number);
+  const [ch, cm] = close.split(":").map(Number);
+  const diff = ch * 60 + cm - (oh * 60 + om);
+  return diff > 0 ? diff : diff + 24 * 60;
+}
+
 /** Crea o actualiza una zona común (si viene `id`, actualiza). */
 export async function saveAmenity(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const me = await getProfile();
@@ -25,9 +33,13 @@ export async function saveAmenity(_prev: ActionState, formData: FormData): Promi
   const capacity = int(formData, "capacity");
 
   if (!name) return { error: "Escribe el nombre de la zona." };
-  if (!open || !close || close <= open) return { error: "El cierre debe ser posterior a la apertura." };
+  if (!open || !close) return { error: "Indica la hora de apertura y de cierre." };
+  if (open === close) return { error: "La apertura y el cierre no pueden ser a la misma hora." };
   if (!maxHours || !Number.isInteger(maxHours) || maxHours < 1) {
     return { error: "La duración máxima debe ser de al menos 1 hora." };
+  }
+  if (maxHours * 60 > windowMinutes(open, close)) {
+    return { error: "La duración máxima no puede superar las horas que la zona está abierta." };
   }
   if (!Number.isInteger(deposit) || deposit < 0) return { error: "El depósito no puede ser negativo." };
   if (capacity !== null && (!Number.isInteger(capacity) || capacity < 1)) {
@@ -56,5 +68,5 @@ export async function saveAmenity(_prev: ActionState, formData: FormData): Promi
 
   revalidatePath("/admin/zonas");
   revalidatePath("/reservas");
-  return { ok: id ? "Zona actualizada." : "Zona creada." };
+  return { ok: id ? `«${name}» actualizada.` : `«${name}» creada.` };
 }

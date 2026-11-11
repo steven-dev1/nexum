@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
+import { Modal } from "@/components/modal";
 import {
   Badge,
   Card,
+  ContentSkeleton,
   Empty,
   Field,
   PageHeader,
   SectionTitle,
+  Select,
   btnPrimary,
   btnSm,
   inputCls,
@@ -30,7 +35,84 @@ type Pkg = {
   units: { tower: string; number: string } | null;
 };
 
-export default async function PaqueteriaPage() {
+export default function PaqueteriaPage() {
+  return (
+    <>
+      <PageHeader
+        title="Paquetería"
+        description="Paquetes que llegan a portería: registro, aviso y entrega."
+        action={
+          <Suspense fallback={null}>
+            <RegisterPackage />
+          </Suspense>
+        }
+      />
+      <Suspense fallback={<ContentSkeleton />}>
+        <PaqueteriaContent />
+      </Suspense>
+    </>
+  );
+}
+
+/** Botón + modal de registro: solo portería y administración. */
+async function RegisterPackage() {
+  const profile = await getProfile();
+  if (!isStaff(profile)) return null;
+
+  const supabase = await createClient();
+  const { data: units } = await supabase
+    .from("units")
+    .select("id, tower, number")
+    .order("tower")
+    .order("number");
+
+  return (
+    <Modal
+      title="Registrar paquete"
+      description="Queda pendiente de entrega y el residente lo ve en su panel."
+      icon="package"
+      trigger="Registrar paquete"
+      plus
+    >
+      <ActionForm action={registerPackage} submitLabel="Registrar" pendingLabel="Registrando…" variant="accent">
+        {!units || units.length === 0 ? (
+          <p className="rounded-lg bg-accent-soft px-3 py-2 text-sm text-ink">
+            Aún no hay unidades. Créalas en{" "}
+            <Link href="/admin/unidades" className="font-semibold text-primary-ink underline">
+              Administración → Unidades
+            </Link>
+            .
+          </p>
+        ) : null}
+        <Field label="Unidad destinataria">
+          <Select name="unit_id" required defaultValue="" autoFocus>
+            <option value="" disabled>
+              Selecciona la unidad…
+            </option>
+            {(units ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {unitLabel(u)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Empresa / mensajero">
+            <input name="carrier" placeholder="Servientrega, Rappi…" className={inputCls} />
+          </Field>
+          <Field label="Destinatario (opcional)">
+            <input name="recipient_name" placeholder="Nombre en la guía" className={inputCls} />
+          </Field>
+        </div>
+        <Field label="Descripción">
+          <input name="description" placeholder="Caja mediana, sobre, nevera de icopor…" className={inputCls} />
+        </Field>
+      </ActionForm>
+    </Modal>
+  );
+}
+
+async function PaqueteriaContent() {
   const profile = await getProfile();
   const staff = isStaff(profile);
   const supabase = await createClient();
@@ -38,128 +120,84 @@ export default async function PaqueteriaPage() {
   const select =
     "id, recipient_name, carrier, description, status, received_at, delivered_at, delivered_to, units(tower, number)";
 
-  const [pendingRes, historyRes, unitsRes] = await Promise.all([
+  const [pendingRes, historyRes] = await Promise.all([
     supabase.from("packages").select(select).eq("status", "recibido").order("received_at", { ascending: false }),
-    supabase.from("packages").select(select).neq("status", "recibido").order("received_at", { ascending: false }).limit(15),
-    staff
-      ? supabase.from("units").select("id, tower, number").order("tower").order("number")
-      : Promise.resolve({ data: [] as { id: string; tower: string; number: string }[] }),
+    supabase.from("packages").select(select).neq("status", "recibido").order("received_at", { ascending: false }).limit(20),
   ]);
 
   const pending = (pendingRes.data ?? []) as unknown as Pkg[];
   const history = (historyRes.data ?? []) as unknown as Pkg[];
-  const units = unitsRes.data ?? [];
 
   return (
-    <>
-      <PageHeader
-        title="Paquetería"
-        description={
-          staff
-            ? "Registra los paquetes que llegan a portería y confirma su entrega."
-            : "Los paquetes de tu unidad que están en portería."
-        }
-      />
-
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
-        <div className="space-y-6">
-          <Card>
-            <SectionTitle>
-              Por recoger {pending.length > 0 && <Badge tone="accent">{pending.length}</Badge>}
-            </SectionTitle>
-            {pending.length === 0 ? (
-              <Empty>No hay paquetes pendientes.</Empty>
-            ) : (
-              <ul className="divide-y divide-line">
-                {pending.map((p) => (
-                  <li key={p.id} className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="font-semibold text-ink">
-                        {p.carrier ?? "Paquete"}{" "}
-                        <span className="font-normal text-muted">· {unitLabel(p.units)}</span>
-                      </p>
-                      <p className="text-sm text-muted">
-                        {[p.recipient_name, p.description].filter(Boolean).join(" — ") || "Sin descripción"}
-                      </p>
-                      <p className="text-xs text-muted">Llegó {fmtDateTime(p.received_at)}</p>
-                    </div>
-                    {staff && (
-                      <form action={deliverPackage} className="flex gap-2">
-                        <input type="hidden" name="id" value={p.id} />
-                        <input
-                          name="delivered_to"
-                          placeholder="Quién recibe"
-                          aria-label="Quién recibe"
-                          className={`${inputCls} sm:w-36`}
-                        />
-                        <button type="submit" className={`${btnPrimary} ${btnSm} shrink-0`}>
-                          Entregar
-                        </button>
-                      </form>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-
-          <Card>
-            <SectionTitle>Historial reciente</SectionTitle>
-            {history.length === 0 ? (
-              <Empty>Aún no hay entregas registradas.</Empty>
-            ) : (
-              <ul className="divide-y divide-line">
-                {history.map((p) => (
-                  <li key={p.id} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className="min-w-0">
-                      <p className="font-medium text-ink">
-                        {p.carrier ?? "Paquete"}{" "}
-                        <span className="font-normal text-muted">· {unitLabel(p.units)}</span>
-                      </p>
-                      <p className="text-xs text-muted">
-                        {p.delivered_at ? `Entregado ${fmtDateTime(p.delivered_at)}` : `Llegó ${fmtDateTime(p.received_at)}`}
-                        {p.delivered_to ? ` · recibió ${p.delivered_to}` : ""}
-                      </p>
-                    </div>
-                    <Badge tone={p.status === "entregado" ? "success" : "neutral"}>
-                      {p.status === "entregado" ? "Entregado" : "Devuelto"}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        </div>
-
-        {staff && (
-          <Card className="h-fit lg:sticky lg:top-8">
-            <SectionTitle>Registrar paquete</SectionTitle>
-            <ActionForm action={registerPackage} submitLabel="Registrar" variant="accent">
-              <Field label="Unidad">
-                <select name="unit_id" required defaultValue="" className={inputCls}>
-                  <option value="" disabled>
-                    Selecciona…
-                  </option>
-                  {units.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {unitLabel(u)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="Destinatario (opcional)">
-                <input name="recipient_name" className={inputCls} />
-              </Field>
-              <Field label="Empresa / mensajero">
-                <input name="carrier" placeholder="Servientrega, Rappi…" className={inputCls} />
-              </Field>
-              <Field label="Descripción">
-                <input name="description" placeholder="Caja mediana, sobre…" className={inputCls} />
-              </Field>
-            </ActionForm>
-          </Card>
+    <div className="space-y-6">
+      <Card>
+        <SectionTitle>
+          {staff ? "Por entregar" : "Por recoger"}{" "}
+          {pending.length > 0 && <Badge tone="accent">{pending.length}</Badge>}
+        </SectionTitle>
+        {pending.length === 0 ? (
+          <Empty>No hay paquetes pendientes.</Empty>
+        ) : (
+          <ul className="divide-y divide-line">
+            {pending.map((p) => (
+              <li key={p.id} className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-semibold text-ink">
+                    {p.carrier ?? "Paquete"}{" "}
+                    <span className="font-normal text-muted">· {unitLabel(p.units)}</span>
+                  </p>
+                  <p className="text-sm text-muted">
+                    {[p.recipient_name, p.description].filter(Boolean).join(" — ") || "Sin descripción"}
+                  </p>
+                  <p className="text-xs text-muted">Llegó {fmtDateTime(p.received_at)}</p>
+                </div>
+                {staff && (
+                  <form action={deliverPackage} className="flex gap-2">
+                    <input type="hidden" name="id" value={p.id} />
+                    <input
+                      name="delivered_to"
+                      placeholder="Quién recibe"
+                      aria-label="Quién recibe"
+                      className={`${inputCls} sm:w-40`}
+                    />
+                    <button type="submit" className={`${btnPrimary} ${btnSm} shrink-0`}>
+                      Entregar
+                    </button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
         )}
-      </div>
-    </>
+      </Card>
+
+      <Card>
+        <SectionTitle>Historial reciente</SectionTitle>
+        {history.length === 0 ? (
+          <Empty>Aún no hay entregas registradas.</Empty>
+        ) : (
+          <ul className="divide-y divide-line">
+            {history.map((p) => (
+              <li key={p.id} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <div className="min-w-0">
+                  <p className="font-medium text-ink">
+                    {p.carrier ?? "Paquete"}{" "}
+                    <span className="font-normal text-muted">· {unitLabel(p.units)}</span>
+                  </p>
+                  <p className="text-xs text-muted">
+                    Llegó {fmtDateTime(p.received_at)}
+                    {p.delivered_at ? ` · entregado ${fmtDateTime(p.delivered_at)}` : ""}
+                    {p.delivered_to ? ` · recibió ${p.delivered_to}` : ""}
+                  </p>
+                </div>
+                <Badge tone={p.status === "entregado" ? "success" : "neutral"}>
+                  {p.status === "entregado" ? "Entregado" : "Devuelto"}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </div>
   );
 }
