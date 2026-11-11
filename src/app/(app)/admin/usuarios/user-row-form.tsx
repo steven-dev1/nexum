@@ -2,25 +2,28 @@
 
 import { useState } from "react";
 import { ActionForm } from "@/components/action-form";
-import { Select, btnGhost, btnSm } from "@/components/ui";
+import { Select, type SelectOption } from "@/components/select";
+import { btnGhost, btnSm } from "@/components/ui";
 import type { Role } from "@/lib/auth";
 import { updateUser } from "./actions";
 
-type Unit = { id: string; label: string };
+const ROLE_OPTIONS: SelectOption[] = [
+  { value: "residente", label: "Residente", hint: "Vive en una unidad" },
+  { value: "porteria", label: "Portería", hint: "Registra y entrega paquetes" },
+  { value: "admin", label: "Administración", hint: "Gestiona todo el conjunto" },
+];
 
 /** Fila editable: la unidad solo aplica a residentes. */
 export function UserRowForm({
   id,
   role: initialRole,
   unitId,
-  units,
-  isMe,
+  unitOptions,
 }: {
   id: string;
   role: Role;
   unitId: string | null;
-  units: Unit[];
-  isMe: boolean;
+  unitOptions: SelectOption[];
 }) {
   const [role, setRole] = useState<Role>(initialRole);
   const resident = role === "residente";
@@ -36,26 +39,23 @@ export function UserRowForm({
       <input type="hidden" name="id" value={id} />
       <Select
         name="role"
-        value={role}
-        onChange={(e) => setRole(e.target.value as Role)}
-        disabled={isMe}
         aria-label="Rol"
-        title={isMe ? "No puedes cambiar tu propio rol" : undefined}
-        className="!w-auto !py-2 !text-sm"
-      >
-        <option value="residente">Residente</option>
-        <option value="porteria">Portería</option>
-        <option value="admin">Administración</option>
-      </Select>
+        size="sm"
+        className="w-44"
+        value={role}
+        onChange={(v) => setRole(v as Role)}
+        options={ROLE_OPTIONS}
+      />
       {resident ? (
-        <Select name="unit_id" defaultValue={unitId ?? ""} aria-label="Unidad" className="!w-auto !py-2 !text-sm">
-          <option value="">Sin unidad</option>
-          {units.map((u) => (
-            <option key={u.id} value={u.id}>
-              {u.label}
-            </option>
-          ))}
-        </Select>
+        <Select
+          name="unit_id"
+          aria-label="Unidad"
+          size="sm"
+          className="w-56"
+          defaultValue={unitId ?? ""}
+          placeholder="Sin unidad"
+          options={[{ value: "", label: "Sin unidad" }, ...unitOptions]}
+        />
       ) : (
         <span className="rounded-xl border border-dashed border-line px-3 py-2 text-sm text-muted">
           Personal del conjunto · sin unidad

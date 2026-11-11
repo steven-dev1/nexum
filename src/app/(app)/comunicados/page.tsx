@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { Modal } from "@/components/modal";
+import { Select } from "@/components/select";
 import {
   Badge,
   Card,
@@ -9,7 +10,6 @@ import {
   Empty,
   Field,
   PageHeader,
-  Select,
   btnGhost,
   btnSm,
   inputCls,
@@ -246,24 +246,21 @@ async function NewAnnouncement() {
         <Field label="Mensaje">
           <textarea name="body" rows={7} required className={inputCls} />
         </Field>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Dirigido a">
-            <Select name="audience" defaultValue="todos">
-              <option value="todos">Todo el conjunto</option>
-              <option value="torre">Una torre</option>
-            </Select>
-          </Field>
-          <Field label="Torre (si va a una sola)">
-            <Select name="tower" defaultValue="">
-              <option value="">—</option>
-              {towers.map((t) => (
-                <option key={t} value={t}>
-                  Torre {t}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        </div>
+        <Select
+          label="Dirigido a"
+          name="target"
+          required
+          defaultValue="todos"
+          options={[
+            { value: "todos", label: "Todo el conjunto", hint: "Lo ven todos los residentes" },
+            ...towers.map((t) => ({
+              value: `torre:${t}`,
+              label: `Solo torre ${t}`,
+              hint: "Lo ven únicamente los residentes de esa torre",
+              group: "Por torre",
+            })),
+          ]}
+        />
         <label className="flex items-center gap-2 text-sm text-ink">
           <input type="checkbox" name="pinned" className="size-4 accent-[var(--primary)]" />
           Fijar arriba de los demás comunicados

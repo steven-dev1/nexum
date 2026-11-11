@@ -3,6 +3,8 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { Modal } from "@/components/modal";
+import { Select } from "@/components/select";
+import { unitOptions } from "@/lib/options";
 import {
   Badge,
   Card,
@@ -11,7 +13,6 @@ import {
   Field,
   PageHeader,
   SectionTitle,
-  Select,
   btnPrimary,
   btnSm,
   inputCls,
@@ -19,7 +20,9 @@ import {
 import { getProfile, isStaff, unitLabel } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { PhotoCapture } from "@/components/photo-capture";
 import { deliverPackage, registerPackage } from "./actions";
+import { PhotoThumb } from "./photo-thumb";
 
 export const metadata: Metadata = { title: "Paquetería" };
 
@@ -32,6 +35,7 @@ type Pkg = {
   received_at: string;
   delivered_at: string | null;
   delivered_to: string | null;
+  photo_path: string | null;
   units: { tower: string; number: string } | null;
 };
 
@@ -60,11 +64,7 @@ async function RegisterPackage() {
   if (!isStaff(profile)) return null;
 
   const supabase = await createClient();
-  const { data: units } = await supabase
-    .from("units")
-    .select("id, tower, number")
-    .order("tower")
-    .order("number");
+  const { data: units } = await supabase.from("units").select("id, tower, number").order("tower").order("number");
 
   return (
     <Modal
@@ -84,18 +84,14 @@ async function RegisterPackage() {
             .
           </p>
         ) : null}
-        <Field label="Unidad destinataria">
-          <Select name="unit_id" required defaultValue="" autoFocus>
-            <option value="" disabled>
-              Selecciona la unidad…
-            </option>
-            {(units ?? []).map((u) => (
-              <option key={u.id} value={u.id}>
-                {unitLabel(u)}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <Select
+          label="Unidad destinataria"
+          name="unit_id"
+          required
+          placeholder="Selecciona la unidad…"
+          options={unitOptions(units ?? [])}
+          autoFocus
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Empresa / mensajero">
             <input name="carrier" placeholder="Servientrega, Rappi…" className={inputCls} />
@@ -107,6 +103,7 @@ async function RegisterPackage() {
         <Field label="Descripción">
           <input name="description" placeholder="Caja mediana, sobre, nevera de icopor…" className={inputCls} />
         </Field>
+        <PhotoCapture name="photo" label="Foto del paquete (opcional)" />
       </ActionForm>
     </Modal>
   );
@@ -118,38 +115,58 @@ async function PaqueteriaContent() {
   const supabase = await createClient();
 
   const select =
-    "id, recipient_name, carrier, description, status, received_at, delivered_at, delivered_to, units(tower, number)";
+    "id, recipient_name, carrier, description, status, received_at, delivered_at, delivered_to, photo_path, units(tower, number)";
 
   const [pendingRes, historyRes] = await Promise.all([
     supabase.from("packages").select(select).eq("status", "recibido").order("received_at", { ascending: false }),
-    supabase.from("packages").select(select).neq("status", "recibido").order("received_at", { ascending: false }).limit(20),
+    supabase
+      .from("packages")
+      .select(select)
+      .neq("status", "recibido")
+      .order("received_at", { ascending: false })
+      .limit(20),
   ]);
 
   const pending = (pendingRes.data ?? []) as unknown as Pkg[];
   const history = (historyRes.data ?? []) as unknown as Pkg[];
 
+  // URLs firmadas (1 h) para las fotos; el bucket es privado y la RLS decide quién las ve.
+  const paths = [...pending, ...history].map((p) => p.photo_path).filter((p): p is string => !!p);
+  const photoUrls = new Map<string, string>();
+  if (paths.length > 0) {
+    const { data } = await supabase.storage.from("package-photos").createSignedUrls(paths, 3600);
+    for (const s of data ?? []) if (s.path && s.signedUrl) photoUrls.set(s.path, s.signedUrl);
+  }
+  const photoOf = (p: Pkg) => (p.photo_path ? photoUrls.get(p.photo_path) : undefined);
+
   return (
     <div className="space-y-6">
       <Card>
         <SectionTitle>
-          {staff ? "Por entregar" : "Por recoger"}{" "}
-          {pending.length > 0 && <Badge tone="accent">{pending.length}</Badge>}
+          {staff ? "Por entregar" : "Por recoger"} {pending.length > 0 && <Badge tone="accent">{pending.length}</Badge>}
         </SectionTitle>
         {pending.length === 0 ? (
           <Empty>No hay paquetes pendientes.</Empty>
         ) : (
           <ul className="divide-y divide-line">
             {pending.map((p) => (
-              <li key={p.id} className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="font-semibold text-ink">
-                    {p.carrier ?? "Paquete"}{" "}
-                    <span className="font-normal text-muted">· {unitLabel(p.units)}</span>
-                  </p>
-                  <p className="text-sm text-muted">
-                    {[p.recipient_name, p.description].filter(Boolean).join(" — ") || "Sin descripción"}
-                  </p>
-                  <p className="text-xs text-muted">Llegó {fmtDateTime(p.received_at)}</p>
+              <li
+                key={p.id}
+                className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex min-w-0 items-center gap-3">
+                  {photoOf(p) && (
+                    <PhotoThumb url={photoOf(p)!} title={`${p.carrier ?? "Paquete"} · ${unitLabel(p.units)}`} />
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-semibold text-ink">
+                      {p.carrier ?? "Paquete"} <span className="font-normal text-muted">· {unitLabel(p.units)}</span>
+                    </p>
+                    <p className="text-sm text-muted">
+                      {[p.recipient_name, p.description].filter(Boolean).join(" — ") || "Sin descripción"}
+                    </p>
+                    <p className="text-xs text-muted">Llegó {fmtDateTime(p.received_at)}</p>
+                  </div>
                 </div>
                 {staff && (
                   <form action={deliverPackage} className="flex gap-2">
@@ -178,17 +195,21 @@ async function PaqueteriaContent() {
         ) : (
           <ul className="divide-y divide-line">
             {history.map((p) => (
-              <li key={p.id} className="flex items-start justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                <div className="min-w-0">
-                  <p className="font-medium text-ink">
-                    {p.carrier ?? "Paquete"}{" "}
-                    <span className="font-normal text-muted">· {unitLabel(p.units)}</span>
-                  </p>
-                  <p className="text-xs text-muted">
-                    Llegó {fmtDateTime(p.received_at)}
-                    {p.delivered_at ? ` · entregado ${fmtDateTime(p.delivered_at)}` : ""}
-                    {p.delivered_to ? ` · recibió ${p.delivered_to}` : ""}
-                  </p>
+              <li key={p.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <div className="flex min-w-0 items-center gap-3">
+                  {photoOf(p) && (
+                    <PhotoThumb url={photoOf(p)!} title={`${p.carrier ?? "Paquete"} · ${unitLabel(p.units)}`} />
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-medium text-ink">
+                      {p.carrier ?? "Paquete"} <span className="font-normal text-muted">· {unitLabel(p.units)}</span>
+                    </p>
+                    <p className="text-xs text-muted">
+                      Llegó {fmtDateTime(p.received_at)}
+                      {p.delivered_at ? ` · entregado ${fmtDateTime(p.delivered_at)}` : ""}
+                      {p.delivered_to ? ` · recibió ${p.delivered_to}` : ""}
+                    </p>
+                  </div>
                 </div>
                 <Badge tone={p.status === "entregado" ? "success" : "neutral"}>
                   {p.status === "entregado" ? "Entregado" : "Devuelto"}

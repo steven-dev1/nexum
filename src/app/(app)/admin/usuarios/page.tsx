@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Badge, Card, ContentSkeleton, Empty } from "@/components/ui";
-import { getProfile, roleLabel, unitLabel, type Role } from "@/lib/auth";
+import { getProfile, roleLabel, type Role } from "@/lib/auth";
+import { unitOptions } from "@/lib/options";
 import { fmtDate } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { UserRowForm } from "./user-row-form";
@@ -38,7 +39,7 @@ async function UsuariosContent() {
   ]);
 
   const users = (usersRes.data ?? []) as UserRow[];
-  const units = (unitsRes.data ?? []).map((u) => ({ id: u.id as string, label: unitLabel(u) }));
+  const units = unitOptions(unitsRes.data ?? []);
   const withoutUnit = users.filter((u) => u.role === "residente" && !u.unit_id).length;
 
   return (
@@ -73,7 +74,7 @@ async function UsuariosContent() {
                 {isMe ? (
                   <p className="mt-2 text-xs text-muted">No puedes cambiar tu propio rol.</p>
                 ) : (
-                  <UserRowForm id={u.id} role={u.role} unitId={u.unit_id} units={units} isMe={false} />
+                  <UserRowForm id={u.id} role={u.role} unitId={u.unit_id} unitOptions={units} />
                 )}
               </li>
             );

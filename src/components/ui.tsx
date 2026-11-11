@@ -1,9 +1,16 @@
-import type { ComponentProps, ReactNode } from "react";
+import type { ReactNode } from "react";
 
 /** Estilo común de campos (input, textarea, select y disparadores de los selectores). */
 export const inputCls =
   "block w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 transition-[border-color,box-shadow] hover:border-muted/50 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60";
 export const labelCls = "mb-1.5 block text-[13px] font-semibold text-ink";
+
+/**
+ * Barra de desplazamiento delgada con los colores de la app (claro/oscuro).
+ * `scrollbar-*` para Chrome/Edge/Firefox; `::-webkit-scrollbar` como respaldo para Safari.
+ */
+export const scrollCls =
+  "[scrollbar-width:thin] [scrollbar-color:color-mix(in_oklab,var(--muted)_45%,transparent)_transparent] [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted/45 [&::-webkit-scrollbar-track]:bg-transparent";
 
 const btnBase =
   "inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-[background-color,filter,box-shadow] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100";
@@ -11,29 +18,6 @@ export const btnPrimary = `${btnBase} bg-primary text-on-primary hover:bg-primar
 export const btnAccent = `${btnBase} bg-accent text-accent-ink hover:brightness-95`;
 export const btnGhost = `${btnBase} border border-line bg-surface text-ink hover:bg-surface-2`;
 export const btnSm = "!rounded-lg !px-3 !py-1.5 !text-xs";
-
-/** <select> nativo con el estilo de la app y flecha propia (sirve en claro y oscuro). */
-export function Select({ className = "", children, ...props }: ComponentProps<"select">) {
-  return (
-    <div className="relative">
-      <select {...props} className={`${inputCls} cursor-pointer appearance-none pr-10 ${className}`}>
-        {children}
-      </select>
-      <svg
-        className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-muted"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.25"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-      >
-        <path d="m6 9 6 6 6-6" />
-      </svg>
-    </div>
-  );
-}
 
 export function PageHeader({
   title,

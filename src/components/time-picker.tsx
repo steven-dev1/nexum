@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { scrollCls } from "@/components/ui";
 import { pickerTriggerCls, popoverPanelCls, useAnchoredPopover } from "@/components/use-anchored-popover";
 
-const fmt = new Intl.DateTimeFormat("es-CO", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "UTC" });
-
-/** "18:30" → "6:30 p. m." */
+/**
+ * "18:30" → "6:30 p. m." (formato de Colombia). Se arma a mano en lugar de usar
+ * Intl para que el servidor y el navegador produzcan exactamente el mismo texto
+ * (sus versiones de ICU difieren en los espacios de "a. m.").
+ */
 export function formatTime(value: string) {
   const [h, m] = value.split(":").map(Number);
-  return fmt.format(Date.UTC(2000, 0, 1, h, m));
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${h < 12 ? "a. m." : "p. m."}`;
 }
 
 const PERIODS = [
@@ -121,7 +125,7 @@ export function TimePicker({ name, required, defaultValue = "", step = 30, place
           role="listbox"
           aria-label="Elegir hora"
           onKeyDown={onKeyDown}
-          className="max-h-72 overflow-y-auto overscroll-contain"
+          className={`max-h-72 overflow-y-auto overscroll-contain pr-0.5 ${scrollCls}`}
         >
           {open &&
             PERIODS.map((period, pi) => {

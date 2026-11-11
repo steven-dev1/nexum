@@ -2,7 +2,7 @@
 
 import { startTransition, useActionState, useEffect, type FormEvent, type ReactNode } from "react";
 import type { ActionState } from "@/lib/action-state";
-import { btnAccent, btnGhost, btnPrimary } from "@/components/ui";
+import { btnAccent, btnGhost, btnPrimary, scrollCls } from "@/components/ui";
 import { useModal } from "@/components/modal";
 
 type Props = {
@@ -65,7 +65,7 @@ export function ActionForm({
   if (modal) {
     return (
       <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto border-t border-line px-6 py-5">
+        <div className={`min-h-0 flex-1 space-y-5 overflow-y-auto border-t border-line px-6 py-5 ${scrollCls}`}>
           {children}
           {error}
         </div>

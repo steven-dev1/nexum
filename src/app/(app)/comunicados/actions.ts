@@ -13,8 +13,10 @@ export async function publishAnnouncement(_prev: ActionState, formData: FormData
 
   const title = text(formData, "title");
   const body = text(formData, "body");
-  const audience = text(formData, "audience") === "torre" ? "torre" : "todos";
-  const tower = text(formData, "tower");
+  // `target` es "todos" o "torre:<torre>" (un solo desplegable en el formulario).
+  const target = text(formData, "target");
+  const audience = target.startsWith("torre:") ? "torre" : "todos";
+  const tower = audience === "torre" ? target.slice("torre:".length) : "";
   if (!title || !body) return { error: "Escribe un título y el mensaje." };
   if (audience === "torre" && !tower) return { error: "Selecciona la torre destinataria." };
 

@@ -110,4 +110,10 @@ body {
   select:disabled {
     cursor: not-allowed;
   }
+
+  /* Barras de desplazamiento delgadas con los colores de la app en toda la aplicación. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--muted) 45%, transparent) transparent;
+  }
 }

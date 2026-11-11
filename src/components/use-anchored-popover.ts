@@ -8,7 +8,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
  * posición se calcula con el rectángulo del botón y se voltea hacia arriba
  * si no cabe debajo. Cierre con Escape o clic fuera (light dismiss del navegador).
  */
-export function useAnchoredPopover() {
+export function useAnchoredPopover({ matchWidth = false }: { matchWidth?: boolean } = {}) {
   const id = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -19,6 +19,8 @@ export function useAnchoredPopover() {
     const popover = popoverRef.current;
     if (!trigger || !popover) return;
     const rect = trigger.getBoundingClientRect();
+    // Listas desplegables: al menos tan anchas como su campo.
+    if (matchWidth) popover.style.minWidth = `${Math.max(rect.width, 200)}px`;
     const gap = 8;
     const margin = 8;
     const { offsetWidth: w, offsetHeight: h } = popover;
@@ -31,7 +33,7 @@ export function useAnchoredPopover() {
 
     popover.style.top = `${Math.max(margin, top)}px`;
     popover.style.left = `${left}px`;
-  }, []);
+  }, [matchWidth]);
 
   // Sincroniza el estado con el popover nativo (se abre con popoverTarget, se cierra solo).
   useEffect(() => {

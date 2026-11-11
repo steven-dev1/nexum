@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { DatePicker } from "@/components/date-picker";
 import { Modal } from "@/components/modal";
+import { Select } from "@/components/select";
 import { TimePicker } from "@/components/time-picker";
 import {
   Badge,
@@ -12,7 +13,6 @@ import {
   Field,
   PageHeader,
   SectionTitle,
-  Select,
   btnGhost,
   btnSm,
   inputCls,
@@ -89,12 +89,16 @@ async function NewAssembly() {
           <Field label="Título">
             <input name="title" required placeholder="Asamblea general ordinaria 2027" className={inputCls} autoFocus />
           </Field>
-          <Field label="Tipo">
-            <Select name="kind" defaultValue="ordinaria">
-              <option value="ordinaria">Ordinaria</option>
-              <option value="extraordinaria">Extraordinaria</option>
-            </Select>
-          </Field>
+          <Select
+            label="Tipo"
+            name="kind"
+            required
+            defaultValue="ordinaria"
+            options={[
+              { value: "ordinaria", label: "Ordinaria", hint: "La reunión anual obligatoria" },
+              { value: "extraordinaria", label: "Extraordinaria", hint: "Para asuntos urgentes o puntuales" },
+            ]}
+          />
         </div>
         <div className="grid gap-4 sm:grid-cols-[1fr_12rem]">
           <div>

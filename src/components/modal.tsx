@@ -79,8 +79,10 @@ type Props = {
   title: string;
   description?: string;
   icon?: ModalIcon;
-  /** Texto del botón que abre el modal. */
-  trigger: string;
+  /** Contenido del botón que abre el modal (texto o, p. ej., una miniatura). */
+  trigger: ReactNode;
+  /** Nombre accesible del botón cuando `trigger` no es texto. */
+  triggerLabel?: string;
   /** Muestra un ícono "+" en el botón (acciones de creación). */
   plus?: boolean;
   triggerClassName?: string;
@@ -99,6 +101,7 @@ export function Modal({
   description,
   icon,
   trigger,
+  triggerLabel,
   plus = false,
   triggerClassName,
   size = "md",
@@ -129,9 +132,22 @@ export function Modal({
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={triggerClassName ?? btnAccent}>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={triggerLabel}
+        className={triggerClassName ?? btnAccent}
+      >
         {plus && (
-          <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden>
+          <svg
+            className="size-4"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            aria-hidden
+          >
             <path d="M12 5v14M5 12h14" />
           </svg>
         )}
@@ -164,7 +180,16 @@ export function Modal({
               <header className="flex shrink-0 items-start gap-3.5 px-6 pb-5 pt-4 sm:pt-6">
                 {icon && (
                   <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-ink">
-                    <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <svg
+                      className="size-5"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
                       {icons[icon]}
                     </svg>
                   </span>
@@ -185,7 +210,15 @@ export function Modal({
                   aria-label="Cerrar"
                   className="-mr-2 -mt-1 inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-ink"
                 >
-                  <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                  <svg
+                    className="size-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    aria-hidden
+                  >
                     <path d="M18 6 6 18M6 6l12 12" />
                   </svg>
                 </button>
@@ -202,8 +235,19 @@ export function Modal({
           role="status"
           className="fixed bottom-24 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2.5 rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-bg shadow-lg transition-[opacity,transform] duration-200 starting:translate-y-2 starting:opacity-0 md:bottom-6 md:left-auto md:right-6 md:translate-x-0"
         >
-          <span className="inline-flex size-5 items-center justify-center rounded-full bg-accent text-accent-ink" aria-hidden>
-            <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <span
+            className="inline-flex size-5 items-center justify-center rounded-full bg-accent text-accent-ink"
+            aria-hidden
+          >
+            <svg
+              className="size-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="m5 12 5 5L20 7" />
             </svg>
           </span>

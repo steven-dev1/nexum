@@ -30,6 +30,22 @@ export const fmtHours = (open: string, close: string) =>
 export const todayBogota = () =>
   new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
 
+const bogotaParts = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+
+/** ISO → { date: "YYYY-MM-DD", time: "HH:MM" } en hora de Colombia. */
+export function bogotaDateTime(iso: string) {
+  const p = Object.fromEntries(bogotaParts.formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}` };
+}
+
 /** Combina fecha (YYYY-MM-DD) y hora (HH:MM) en hora de Colombia → ISO UTC. */
 export function bogotaToIso(dateStr: string, timeStr: string) {
   return new Date(`${dateStr}T${timeStr}:00-05:00`).toISOString();

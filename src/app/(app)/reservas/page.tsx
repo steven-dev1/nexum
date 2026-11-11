@@ -1,52 +1,29 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
-import { DatePicker } from "@/components/date-picker";
 import { Modal } from "@/components/modal";
-import { TimePicker } from "@/components/time-picker";
-import {
-  Badge,
-  Card,
-  ContentSkeleton,
-  Empty,
-  Field,
-  PageHeader,
-  SectionTitle,
-  Select,
-  btnGhost,
-  btnSm,
-  inputCls,
-  labelCls,
-} from "@/components/ui";
+import { Badge, Card, ContentSkeleton, Empty, PageHeader, SectionTitle, btnGhost, btnSm } from "@/components/ui";
 import { getProfile, isStaff, unitLabel } from "@/lib/auth";
-import { fmtCop, fmtDate, fmtHours, fmtTime, todayBogota } from "@/lib/format";
+import { bogotaDateTime, fmtCop, fmtDate, fmtHours, fmtTime, todayBogota } from "@/lib/format";
+import { unitOptions } from "@/lib/options";
 import { createClient } from "@/lib/supabase/server";
-import { cancelReservation, createReservation } from "./actions";
+import { cancelReservation, createReservation, updateReservation } from "./actions";
+import { Availability } from "./availability";
+import { amenityColumns, getBookings, toAmenityInfo, type AmenityRow } from "./data";
+import { ReservationFields } from "./reservation-fields";
 
 export const metadata: Metadata = { title: "Reservas" };
-
-type Amenity = {
-  id: string;
-  name: string;
-  description: string | null;
-  capacity: number | null;
-  deposit_cop: number;
-  open_time: string;
-  close_time: string;
-  max_hours: number;
-};
 
 type Reservation = {
   id: string;
   user_id: string;
+  amenity_id: string;
   starts_at: string;
   ends_at: string;
   notes: string | null;
   amenities: { name: string } | null;
   units: { tower: string; number: string } | null;
 };
-
-const amenityColumns = "id, name, description, capacity, deposit_cop, open_time, close_time, max_hours";
 
 export default function ReservasPage() {
   return (
@@ -74,13 +51,14 @@ async function NewReservation() {
   if (!staff && !profile.unitId) return null;
 
   const supabase = await createClient();
-  const [amenitiesRes, unitsRes] = await Promise.all([
+  const [amenitiesRes, unitsRes, bookings] = await Promise.all([
     supabase.from("amenities").select(amenityColumns).eq("active", true).order("name"),
     staff
       ? supabase.from("units").select("id, tower, number").order("tower").order("number")
       : Promise.resolve({ data: [] as { id: string; tower: string; number: string }[] }),
+    getBookings(supabase, { withUnits: staff }),
   ]);
-  const amenities = (amenitiesRes.data ?? []) as Amenity[];
+  const amenities = (amenitiesRes.data ?? []) as AmenityRow[];
   if (amenities.length === 0) return null;
 
   return (
@@ -92,54 +70,11 @@ async function NewReservation() {
       plus
     >
       <ActionForm action={createReservation} submitLabel="Reservar" pendingLabel="Reservando…" variant="accent">
-        {staff && (
-          <Field label="Unidad">
-            <Select name="unit_id" required defaultValue="">
-              <option value="" disabled>
-                Selecciona la unidad…
-              </option>
-              {(unitsRes.data ?? []).map((u) => (
-                <option key={u.id} value={u.id}>
-                  {unitLabel(u)}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
-        <Field label="Zona común">
-          <Select name="amenity_id" required defaultValue="" autoFocus={!staff}>
-            <option value="" disabled>
-              Selecciona la zona…
-            </option>
-            {amenities.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name} · {fmtHours(a.open_time, a.close_time)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <div>
-          <span className={labelCls}>Fecha</span>
-          <DatePicker name="date" min={todayBogota()} required />
-        </div>
-        <div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <span className={labelCls}>Desde</span>
-              <TimePicker name="start" required />
-            </div>
-            <div>
-              <span className={labelCls}>Hasta</span>
-              <TimePicker name="end" required />
-            </div>
-          </div>
-          <p className="mt-1.5 text-xs leading-5 text-muted">
-            Si la hora de fin es menor que la de inicio, la reserva termina al día siguiente.
-          </p>
-        </div>
-        <Field label="Notas (opcional)">
-          <input name="notes" placeholder="Cumpleaños, reunión…" className={inputCls} />
-        </Field>
+        <ReservationFields
+          amenities={amenities.map(toAmenityInfo)}
+          bookings={bookings}
+          unitOptions={staff ? unitOptions(unitsRes.data ?? []) : undefined}
+        />
       </ActionForm>
     </Modal>
   );
@@ -150,19 +85,22 @@ async function ReservasContent() {
   const staff = isStaff(profile);
   const supabase = await createClient();
 
-  const [amenitiesRes, reservationsRes] = await Promise.all([
+  const [amenitiesRes, reservationsRes, bookings] = await Promise.all([
     supabase.from("amenities").select(amenityColumns).eq("active", true).order("name"),
     supabase
       .from("reservations")
-      .select("id, user_id, starts_at, ends_at, notes, amenities(name), units(tower, number)")
+      .select("id, user_id, amenity_id, starts_at, ends_at, notes, amenities(name), units(tower, number)")
       .eq("status", "confirmada")
       .gt("ends_at", new Date().toISOString())
       .order("starts_at")
       .limit(50),
+    getBookings(supabase, { withUnits: staff }),
   ]);
 
-  const amenities = (amenitiesRes.data ?? []) as Amenity[];
+  const amenities = (amenitiesRes.data ?? []) as AmenityRow[];
+  const amenityInfos = amenities.map(toAmenityInfo);
   const reservations = (reservationsRes.data ?? []) as unknown as Reservation[];
+  const now = new Date().toISOString();
 
   return (
     <div className="space-y-6">
@@ -173,7 +111,7 @@ async function ReservasContent() {
       )}
 
       <Card>
-        <SectionTitle>Zonas disponibles</SectionTitle>
+        <SectionTitle>Zonas comunes</SectionTitle>
         {amenities.length === 0 ? (
           <Empty>La administración aún no ha configurado zonas comunes.</Empty>
         ) : (
@@ -202,8 +140,12 @@ async function ReservasContent() {
           <ul className="divide-y divide-line">
             {reservations.map((r) => {
               const mine = !staff && r.user_id === profile.id;
+              const canManage = mine || staff;
+              const notStarted = Date.parse(r.starts_at) > Date.parse(now);
+              const start = bogotaDateTime(r.starts_at);
+              const end = bogotaDateTime(r.ends_at);
               return (
-                <li key={r.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
                   <div className="min-w-0">
                     <p className="font-semibold text-ink">
                       {r.amenities?.name} {mine && <Badge tone="accent">Tuya</Badge>}
@@ -216,13 +158,44 @@ async function ReservasContent() {
                       {r.notes ? ` · ${r.notes}` : ""}
                     </p>
                   </div>
-                  {(mine || staff) && (
-                    <form action={cancelReservation}>
-                      <input type="hidden" name="id" value={r.id} />
-                      <button type="submit" className={`${btnGhost} ${btnSm}`}>
-                        Cancelar
-                      </button>
-                    </form>
+                  {canManage && (
+                    <div className="flex gap-2">
+                      {notStarted && (
+                        <Modal
+                          title="Editar reserva"
+                          description={`${r.amenities?.name ?? "Reserva"} · ${unitLabel(r.units)}`}
+                          icon="edit"
+                          trigger="Editar"
+                          triggerClassName={`${btnGhost} ${btnSm}`}
+                        >
+                          <ActionForm
+                            action={updateReservation}
+                            submitLabel="Guardar cambios"
+                            pendingLabel="Guardando…"
+                          >
+                            <input type="hidden" name="id" value={r.id} />
+                            <ReservationFields
+                              amenities={amenityInfos}
+                              bookings={bookings}
+                              excludeId={r.id}
+                              defaults={{
+                                amenityId: r.amenity_id,
+                                date: start.date,
+                                start: start.time,
+                                end: end.time,
+                                notes: r.notes ?? "",
+                              }}
+                            />
+                          </ActionForm>
+                        </Modal>
+                      )}
+                      <form action={cancelReservation}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <button type="submit" className={`${btnGhost} ${btnSm}`}>
+                          Cancelar
+                        </button>
+                      </form>
+                    </div>
                   )}
                 </li>
               );
@@ -230,6 +203,16 @@ async function ReservasContent() {
           </ul>
         )}
       </Card>
+
+      {amenities.length > 0 && (
+        <Card>
+          <SectionTitle>Disponibilidad</SectionTitle>
+          <p className="-mt-2 mb-4 text-sm text-muted">
+            Elige una zona y un día para ver qué horarios ya están reservados.
+          </p>
+          <Availability amenities={amenityInfos} bookings={bookings} today={todayBogota()} />
+        </Card>
+      )}
     </div>
   );
 }
