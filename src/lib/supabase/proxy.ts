@@ -40,7 +40,12 @@ export async function updateSession(request: NextRequest) {
   const { data } = await supabase.auth.getClaims();
   const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
 
-  if (!data?.claims && !isPublic) {
+  // Las Server Actions (POST con cabecera `next-action`) esperan una respuesta de
+  // acción, no HTML: redirigirlas desde aquí rompe el cliente ("unexpected response").
+  // Cada acción valida la sesión por su cuenta (getProfile → redirect desde la acción).
+  const isServerAction = request.headers.has("next-action");
+
+  if (!data?.claims && !isPublic && !isServerAction) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     const redirect = NextResponse.redirect(url);

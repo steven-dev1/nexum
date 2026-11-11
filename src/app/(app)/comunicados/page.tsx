@@ -11,7 +11,7 @@ import {
   btnSm,
   inputCls,
 } from "@/components/ui";
-import { getProfile, isAdmin } from "@/lib/auth";
+import { getProfile, isAdmin, unitLabel } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { markAsRead, publishAnnouncement } from "./actions";
@@ -27,6 +27,87 @@ type Announcement = {
   pinned: boolean;
   published_at: string;
 };
+
+type Resident = {
+  id: string;
+  full_name: string;
+  email: string | null;
+  units: { tower: string; number: string } | null;
+};
+
+/** Acuse de lectura (solo administración): quién leyó y quién falta entre los destinatarios. */
+function ReadReceipts({
+  announcement,
+  residents,
+  reads,
+}: {
+  announcement: Announcement;
+  residents: Resident[];
+  reads?: Map<string, string>;
+}) {
+  const audience = residents.filter(
+    (r) => announcement.audience === "todos" || r.units?.tower === announcement.tower,
+  );
+  const readers = audience.filter((r) => reads?.has(r.id));
+  const pending = audience.filter((r) => !reads?.has(r.id));
+  const pct = audience.length ? Math.round((readers.length / audience.length) * 100) : 0;
+  const name = (r: Resident) => r.full_name || r.email || "Sin nombre";
+
+  return (
+    <details className="mt-4 rounded-lg border border-line bg-surface-2 p-3">
+      <summary className="cursor-pointer list-none">
+        <div className="flex items-center justify-between gap-3 text-sm font-semibold text-ink">
+          <span>
+            Leído por {readers.length} de {audience.length} destinatarios
+          </span>
+          <span className="text-primary-ink">{pct}%</span>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-line" aria-hidden>
+          <div className="h-full rounded-full bg-accent" style={{ width: `${pct}%` }} />
+        </div>
+      </summary>
+
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-success">
+            Leyeron ({readers.length})
+          </p>
+          {readers.length === 0 ? (
+            <p className="text-sm text-muted">Nadie aún.</p>
+          ) : (
+            <ul className="space-y-1.5 text-sm">
+              {readers.map((r) => (
+                <li key={r.id}>
+                  <span className="font-medium text-ink">{name(r)}</span>
+                  <span className="block text-xs text-muted">
+                    {unitLabel(r.units)} · {fmtDateTime(reads!.get(r.id)!)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-danger">
+            Pendientes ({pending.length})
+          </p>
+          {pending.length === 0 ? (
+            <p className="text-sm text-muted">Todos leyeron.</p>
+          ) : (
+            <ul className="space-y-1.5 text-sm">
+              {pending.map((r) => (
+                <li key={r.id}>
+                  <span className="font-medium text-ink">{name(r)}</span>
+                  <span className="block text-xs text-muted">{unitLabel(r.units)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </details>
+  );
+}
 
 export default async function ComunicadosPage() {
   const profile = await getProfile();
@@ -47,6 +128,29 @@ export default async function ComunicadosPage() {
   const items = (listRes.data ?? []) as Announcement[];
   const read = new Set((readsRes.data ?? []).map((r) => r.announcement_id as string));
   const towers = [...new Set((towersRes.data ?? []).map((u) => u.tower).filter(Boolean))].sort();
+
+  // Solo administración: quién leyó cada comunicado (entre los residentes a quienes va dirigido).
+  let residents: Resident[] = [];
+  const readsByAnnouncement = new Map<string, Map<string, string>>();
+  if (admin && items.length > 0) {
+    const [residentsRes, receiptsRes] = await Promise.all([
+      supabase
+        .from("profiles")
+        .select("id, full_name, email, units(tower, number)")
+        .eq("role", "residente")
+        .order("full_name"),
+      supabase
+        .from("announcement_reads")
+        .select("announcement_id, user_id, read_at")
+        .in("announcement_id", items.map((i) => i.id)),
+    ]);
+    residents = (residentsRes.data ?? []) as unknown as Resident[];
+    for (const r of receiptsRes.data ?? []) {
+      const byUser = readsByAnnouncement.get(r.announcement_id) ?? new Map<string, string>();
+      byUser.set(r.user_id, r.read_at);
+      readsByAnnouncement.set(r.announcement_id, byUser);
+    }
+  }
 
   return (
     <>
@@ -77,6 +181,7 @@ export default async function ComunicadosPage() {
                   </div>
                   <p className="mt-0.5 text-xs text-muted">{fmtDateTime(a.published_at)}</p>
                   <p className="mt-3 whitespace-pre-line text-sm leading-6 text-ink">{a.body}</p>
+                  {admin && <ReadReceipts announcement={a} residents={residents} reads={readsByAnnouncement.get(a.id)} />}
                   {!admin && (
                     <div className="mt-4">
                       {isRead ? (

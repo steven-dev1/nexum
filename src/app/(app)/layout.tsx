@@ -1,10 +1,21 @@
 import { Suspense } from "react";
-import { AppNav } from "@/components/app-nav";
+import { AdminNavLink, AppNav } from "@/components/app-nav";
 import { Brand } from "@/components/brand";
-import { PageSkeleton, Badge, btnGhost } from "@/components/ui";
+import { Badge, btnGhost } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getProfile, roleLabel } from "@/lib/auth";
+import { getProfile, isAdmin, roleLabel } from "@/lib/auth";
 import { signOut } from "@/lib/actions/auth";
+
+/** Enlace a /admin: solo se renderiza para administradores. */
+async function AdminItem({ variant }: { variant: "side" | "bottom" }) {
+  const profile = await getProfile();
+  if (!isAdmin(profile)) return null;
+  return (
+    <li>
+      <AdminNavLink variant={variant} />
+    </li>
+  );
+}
 
 async function UserCard() {
   const profile = await getProfile();
@@ -31,7 +42,14 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
     <div className="flex min-h-screen">
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-line bg-surface p-4 md:flex">
         <Brand className="mb-6 px-1" />
-        <AppNav variant="side" />
+        <AppNav
+          variant="side"
+          extra={
+            <Suspense fallback={null}>
+              <AdminItem variant="side" />
+            </Suspense>
+          }
+        />
         <div className="mt-auto">
           <Suspense fallback={<div className="mb-3 h-20 rounded-lg bg-surface-2" />}>
             <UserCard />
@@ -47,8 +65,8 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         </header>
 
         <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-28 md:px-8 md:py-8 md:pb-8">
-          {/* Todo lo que lee la sesión se transmite aquí dentro (Cache Components). */}
-          <Suspense fallback={<PageSkeleton />}>{children}</Suspense>
+          {/* El <Suspense> de las páginas lo aporta (app)/loading.tsx. */}
+          {children}
         </main>
       </div>
 
@@ -56,7 +74,14 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         aria-label="Navegación principal"
         className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface md:hidden"
       >
-        <AppNav variant="bottom" />
+        <AppNav
+          variant="bottom"
+          extra={
+            <Suspense fallback={null}>
+              <AdminItem variant="bottom" />
+            </Suspense>
+          }
+        />
       </nav>
     </div>
   );

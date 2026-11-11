@@ -10,6 +10,8 @@ type Props = {
   pendingLabel?: string;
   variant?: "primary" | "accent";
   className?: string;
+  /** Reemplaza el estilo del botón (p. ej. versión compacta en filas de tabla). */
+  buttonClassName?: string;
   children: ReactNode;
 };
 
@@ -20,6 +22,7 @@ export function ActionForm({
   pendingLabel = "Guardando…",
   variant = "primary",
   className = "space-y-4",
+  buttonClassName,
   children,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, null);
@@ -46,7 +49,7 @@ export function ActionForm({
       <button
         type="submit"
         disabled={pending}
-        className={variant === "accent" ? btnAccent : btnPrimary}
+        className={buttonClassName ?? (variant === "accent" ? btnAccent : btnPrimary)}
       >
         {pending ? pendingLabel : submitLabel}
       </button>

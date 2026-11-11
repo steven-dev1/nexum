@@ -1,9 +1,17 @@
 import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 
-/** Cliente de Supabase para Server Components, Server Actions y Route Handlers. */
+/**
+ * Cliente de Supabase para Server Components, Server Actions y Route Handlers.
+ *
+ * `connection()` difiere el trabajo a tiempo de petición: la sesión y la
+ * validación del JWT (que usa Date.now() para comprobar la expiración) nunca
+ * deben ejecutarse durante el prerender del shell estático (Cache Components).
+ */
 export async function createClient() {
+  await connection();
   const cookieStore = await cookies();
 
   return createServerClient(
