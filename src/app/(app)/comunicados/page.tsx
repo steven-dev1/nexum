@@ -2,22 +2,12 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { Modal } from "@/components/modal";
-import { Select } from "@/components/select";
-import {
-  Badge,
-  Card,
-  ContentSkeleton,
-  Empty,
-  Field,
-  PageHeader,
-  btnGhost,
-  btnSm,
-  inputCls,
-} from "@/components/ui";
+import { Badge, Card, ContentSkeleton, Empty, PageHeader, btnGhost, btnSm } from "@/components/ui";
 import { getProfile, isAdmin, unitLabel } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { markAsRead, publishAnnouncement } from "./actions";
+import { markAsRead, publishAnnouncement, updateAnnouncement } from "./actions";
+import { AnnouncementFields, towersOf } from "./announcement-fields";
 
 export const metadata: Metadata = { title: "Comunicados" };
 
@@ -48,9 +38,7 @@ function ReadReceipts({
   residents: Resident[];
   reads?: Map<string, string>;
 }) {
-  const audience = residents.filter(
-    (r) => announcement.audience === "todos" || r.units?.tower === announcement.tower,
-  );
+  const audience = residents.filter((r) => announcement.audience === "todos" || r.units?.tower === announcement.tower);
   const readers = audience.filter((r) => reads?.has(r.id));
   const pending = audience.filter((r) => !reads?.has(r.id));
   const pct = audience.length ? Math.round((readers.length / audience.length) * 100) : 0;
@@ -136,7 +124,7 @@ async function ComunicadosContent() {
   const admin = isAdmin(profile);
   const supabase = await createClient();
 
-  const [listRes, readsRes] = await Promise.all([
+  const [listRes, readsRes, unitsRes] = await Promise.all([
     supabase
       .from("announcements")
       .select("id, title, body, audience, tower, pinned, published_at")
@@ -144,7 +132,9 @@ async function ComunicadosContent() {
       .order("published_at", { ascending: false })
       .limit(30),
     supabase.from("announcement_reads").select("announcement_id").eq("user_id", profile.id),
+    admin ? supabase.from("units").select("tower") : Promise.resolve({ data: [] as { tower: string }[] }),
   ]);
+  const towers = towersOf(unitsRes.data);
 
   const items = (listRes.data ?? []) as Announcement[];
   const read = new Set((readsRes.data ?? []).map((r) => r.announcement_id as string));
@@ -162,7 +152,10 @@ async function ComunicadosContent() {
       supabase
         .from("announcement_reads")
         .select("announcement_id, user_id, read_at")
-        .in("announcement_id", items.map((i) => i.id)),
+        .in(
+          "announcement_id",
+          items.map((i) => i.id),
+        ),
     ]);
     residents = (residentsRes.data ?? []) as unknown as Resident[];
     for (const r of receiptsRes.data ?? []) {
@@ -187,7 +180,8 @@ async function ComunicadosContent() {
                 <Card key={a.id} className={!isRead && !admin ? "border-l-4 !border-l-accent" : ""}>
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h2 className="text-lg font-semibold text-ink">{a.title}</h2>
-                    <div className="flex gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {admin && <EditAnnouncement announcement={a} towers={towers} />}
                       {a.pinned && <Badge tone="accent">Fijado</Badge>}
                       <Badge tone={a.audience === "torre" ? "primary" : "neutral"}>
                         {a.audience === "torre" ? `Torre ${a.tower}` : "Todo el conjunto"}
@@ -196,7 +190,9 @@ async function ComunicadosContent() {
                   </div>
                   <p className="mt-0.5 text-xs text-muted">{fmtDateTime(a.published_at)}</p>
                   <p className="mt-3 whitespace-pre-line text-sm leading-6 text-ink">{a.body}</p>
-                  {admin && <ReadReceipts announcement={a} residents={residents} reads={readsByAnnouncement.get(a.id)} />}
+                  {admin && (
+                    <ReadReceipts announcement={a} residents={residents} reads={readsByAnnouncement.get(a.id)} />
+                  )}
                   {!admin && (
                     <div className="mt-4">
                       {isRead ? (
@@ -221,6 +217,33 @@ async function ComunicadosContent() {
   );
 }
 
+/** Botón + modal para editar un comunicado (solo administración). */
+function EditAnnouncement({ announcement: a, towers }: { announcement: Announcement; towers: string[] }) {
+  return (
+    <Modal
+      title="Editar comunicado"
+      description="Los cambios se ven de inmediato; las lecturas registradas se conservan."
+      icon="edit"
+      trigger="Editar"
+      triggerClassName={`${btnGhost} ${btnSm}`}
+      size="lg"
+    >
+      <ActionForm action={updateAnnouncement} submitLabel="Guardar cambios" pendingLabel="Guardando…">
+        <input type="hidden" name="id" value={a.id} />
+        <AnnouncementFields
+          towers={towers}
+          defaults={{
+            title: a.title,
+            body: a.body,
+            target: a.audience === "torre" ? `torre:${a.tower}` : "todos",
+            pinned: a.pinned,
+          }}
+        />
+      </ActionForm>
+    </Modal>
+  );
+}
+
 /** Botón + modal para publicar: solo administración. */
 async function NewAnnouncement() {
   const profile = await getProfile();
@@ -228,7 +251,7 @@ async function NewAnnouncement() {
 
   const supabase = await createClient();
   const { data } = await supabase.from("units").select("tower");
-  const towers = [...new Set((data ?? []).map((u) => u.tower as string).filter(Boolean))].sort();
+  const towers = towersOf(data);
 
   return (
     <Modal
@@ -240,31 +263,7 @@ async function NewAnnouncement() {
       size="lg"
     >
       <ActionForm action={publishAnnouncement} submitLabel="Publicar" pendingLabel="Publicando…" variant="accent">
-        <Field label="Título">
-          <input name="title" required placeholder="Corte de agua programado" className={inputCls} autoFocus />
-        </Field>
-        <Field label="Mensaje">
-          <textarea name="body" rows={7} required className={inputCls} />
-        </Field>
-        <Select
-          label="Dirigido a"
-          name="target"
-          required
-          defaultValue="todos"
-          options={[
-            { value: "todos", label: "Todo el conjunto", hint: "Lo ven todos los residentes" },
-            ...towers.map((t) => ({
-              value: `torre:${t}`,
-              label: `Solo torre ${t}`,
-              hint: "Lo ven únicamente los residentes de esa torre",
-              group: "Por torre",
-            })),
-          ]}
-        />
-        <label className="flex items-center gap-2 text-sm text-ink">
-          <input type="checkbox" name="pinned" className="size-4 accent-[var(--primary)]" />
-          Fijar arriba de los demás comunicados
-        </label>
+        <AnnouncementFields towers={towers} />
       </ActionForm>
     </Modal>
   );

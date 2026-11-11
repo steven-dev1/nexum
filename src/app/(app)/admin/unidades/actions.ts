@@ -59,9 +59,11 @@ export async function deleteUnit(_prev: ActionState, formData: FormData): Promis
   const supabase = await createClient();
   const { error } = await supabase.from("units").delete().eq("id", id);
   // 23503: la unidad tiene paquetes o reservas asociados.
-  if (error?.code === "23503") return { error: "Tiene paquetes o reservas asociados." };
-  if (error) return { error: "No se pudo eliminar." };
+  if (error?.code === "23503") {
+    return { error: "No se puede eliminar: tiene paquetes o reservas registrados." };
+  }
+  if (error) return { error: "No se pudo eliminar la unidad." };
 
   revalidatePath("/admin/unidades");
-  return { ok: "Eliminada." };
+  return { ok: "Unidad eliminada." };
 }

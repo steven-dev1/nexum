@@ -17,6 +17,7 @@ const btnBase =
 export const btnPrimary = `${btnBase} bg-primary text-on-primary hover:bg-primary-hover`;
 export const btnAccent = `${btnBase} bg-accent text-accent-ink hover:brightness-95`;
 export const btnGhost = `${btnBase} border border-line bg-surface text-ink hover:bg-surface-2`;
+export const btnDanger = `${btnBase} border border-danger/40 bg-danger-soft text-danger hover:brightness-95`;
 export const btnSm = "!rounded-lg !px-3 !py-1.5 !text-xs";
 
 export function PageHeader({

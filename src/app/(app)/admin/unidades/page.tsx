@@ -2,29 +2,18 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { Modal } from "@/components/modal";
-import {
-  Badge,
-  Card,
-  ContentSkeleton,
-  Empty,
-  Field,
-  SectionTitle,
-  btnGhost,
-  btnSm,
-  inputCls,
-} from "@/components/ui";
+import { Card, ContentSkeleton, Empty, Field, inputCls } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { createUnits, deleteUnit } from "./actions";
+import { createUnits } from "./actions";
+import { UnitsBoard, type UnitView } from "./units-board";
 
 export const metadata: Metadata = { title: "Unidades" };
-
-type UnitRow = { id: string; tower: string; number: string; profiles: { count: number }[] };
 
 export default function UnidadesPage() {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">Torres y apartamentos del conjunto.</p>
+        <p className="text-sm text-muted">Torres, pisos y apartamentos del conjunto.</p>
         <Modal
           title="Agregar unidades"
           description="Crea uno o varios apartamentos de una torre a la vez."
@@ -40,8 +29,8 @@ export default function UnidadesPage() {
               label="Apartamentos"
               hint={
                 <>
-                  Separa con comas o espacios. Un rango como <span className="font-mono text-ink">101-110</span> crea los
-                  diez de una vez; los que ya existan se omiten.
+                  Separa con comas o espacios. Un rango como <span className="font-mono text-ink">101-110</span> crea
+                  los diez de una vez; los que ya existan se omiten.
                 </>
               }
             >
@@ -59,14 +48,27 @@ export default function UnidadesPage() {
 
 async function UnidadesContent() {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("units")
-    .select("id, tower, number, profiles(count)")
-    .order("tower")
-    .order("number");
+  const [unitsRes, packagesRes] = await Promise.all([
+    supabase.from("units").select("id, tower, number, profiles(id, full_name, email)"),
+    supabase.from("packages").select("unit_id").eq("status", "recibido"),
+  ]);
 
-  const units = (data ?? []) as UnitRow[];
-  const byTower = Map.groupBy(units, (u) => u.tower);
+  const pending = new Map<string, number>();
+  for (const p of packagesRes.data ?? []) pending.set(p.unit_id, (pending.get(p.unit_id) ?? 0) + 1);
+
+  const rows = (unitsRes.data ?? []) as unknown as {
+    id: string;
+    tower: string;
+    number: string;
+    profiles: { id: string; full_name: string; email: string | null }[] | null;
+  }[];
+  const units: UnitView[] = rows.map((u) => ({
+    id: u.id,
+    tower: u.tower,
+    number: u.number,
+    residents: (u.profiles ?? []).map((p) => ({ id: p.id, name: p.full_name, email: p.email })),
+    pendingPackages: pending.get(u.id) ?? 0,
+  }));
 
   if (units.length === 0) {
     return (
@@ -76,44 +78,5 @@ async function UnidadesContent() {
     );
   }
 
-  return (
-    <div className="space-y-4">
-      {[...byTower.entries()].map(([tower, list]) => (
-        <Card key={tower || "sin-torre"}>
-          <SectionTitle>
-            {tower ? `Torre ${tower}` : "Sin torre"} <Badge>{list.length}</Badge>
-          </SectionTitle>
-          <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {list.map((u) => {
-              const residents = u.profiles[0]?.count ?? 0;
-              return (
-                <li
-                  key={u.id}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface-2 px-3 py-2"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-ink">Apto {u.number}</p>
-                    <p className="text-xs text-muted">
-                      {residents === 0 ? "Sin residentes" : `${residents} residente${residents === 1 ? "" : "s"}`}
-                    </p>
-                  </div>
-                  {residents === 0 && (
-                    <ActionForm
-                      action={deleteUnit}
-                      submitLabel="Eliminar"
-                      pendingLabel="…"
-                      className="flex flex-col items-end gap-1"
-                      buttonClassName={`${btnGhost} ${btnSm}`}
-                    >
-                      <input type="hidden" name="id" value={u.id} />
-                    </ActionForm>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </Card>
-      ))}
-    </div>
-  );
+  return <UnitsBoard units={units} />;
 }

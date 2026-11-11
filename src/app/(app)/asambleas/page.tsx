@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
-import { DatePicker } from "@/components/date-picker";
 import { Modal } from "@/components/modal";
-import { Select } from "@/components/select";
-import { TimePicker } from "@/components/time-picker";
-import {
-  Badge,
-  Card,
-  ContentSkeleton,
-  Empty,
-  Field,
-  PageHeader,
-  SectionTitle,
-  btnGhost,
-  btnSm,
-  inputCls,
-  labelCls,
-} from "@/components/ui";
+import { Badge, Card, ContentSkeleton, Empty, PageHeader, SectionTitle, btnGhost, btnSm } from "@/components/ui";
 import { getProfile, isAdmin } from "@/lib/auth";
-import { fmtDateTime, todayBogota } from "@/lib/format";
+import { bogotaDateTime, fmtDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { cancelAssembly, createAssembly } from "./actions";
+import { cancelAssembly, createAssembly, updateAssembly } from "./actions";
+import { AssemblyFields } from "./assembly-fields";
+import { reminderKeysFor } from "./reminders";
 
 export const metadata: Metadata = { title: "Asambleas" };
 
@@ -34,7 +21,7 @@ type Assembly = {
   location: string | null;
   meeting_url: string | null;
   status: "programada" | "en_curso" | "finalizada" | "cancelada";
-  assembly_reminders: { id: string; remind_at: string }[];
+  assembly_reminders: { id: string; remind_at: string; sent_at: string | null }[];
 };
 
 const statusTone = {
@@ -85,66 +72,40 @@ async function NewAssembly() {
       size="lg"
     >
       <ActionForm action={createAssembly} submitLabel="Convocar" pendingLabel="Convocando…" variant="accent">
-        <div className="grid gap-4 sm:grid-cols-[1fr_12rem]">
-          <Field label="Título">
-            <input name="title" required placeholder="Asamblea general ordinaria 2027" className={inputCls} autoFocus />
-          </Field>
-          <Select
-            label="Tipo"
-            name="kind"
-            required
-            defaultValue="ordinaria"
-            options={[
-              { value: "ordinaria", label: "Ordinaria", hint: "La reunión anual obligatoria" },
-              { value: "extraordinaria", label: "Extraordinaria", hint: "Para asuntos urgentes o puntuales" },
-            ]}
-          />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-[1fr_12rem]">
-          <div>
-            <span className={labelCls}>Fecha</span>
-            <DatePicker name="date" min={todayBogota()} required />
-          </div>
-          <div>
-            <span className={labelCls}>Hora</span>
-            <TimePicker name="time" required step={15} />
-          </div>
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Lugar">
-            <input name="location" placeholder="Salón social" className={inputCls} />
-          </Field>
-          <Field label="Enlace virtual (opcional)">
-            <input type="url" name="meeting_url" placeholder="https://…" className={inputCls} />
-          </Field>
-        </div>
-        <Field label="Orden del día / descripción">
-          <textarea name="description" rows={4} className={inputCls} />
-        </Field>
-        <fieldset>
-          <legend className="mb-2 text-sm font-medium text-ink">Recordatorios</legend>
-          <div className="flex flex-wrap gap-2">
-            {[
-              ["7d", "7 días antes"],
-              ["1d", "1 día antes"],
-              ["1h", "1 hora antes"],
-            ].map(([value, label]) => (
-              <label
-                key={value}
-                className="flex cursor-pointer items-center gap-2 rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm font-medium text-ink transition-colors hover:border-muted/50 has-[:checked]:border-primary has-[:checked]:bg-primary-soft has-[:checked]:text-primary-ink"
-              >
-                <input
-                  type="checkbox"
-                  name="reminders"
-                  value={value}
-                  defaultChecked={value !== "1h"}
-                  className="size-4 accent-[var(--primary)]"
-                />
-                {label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <AssemblyFields />
+      </ActionForm>
+    </Modal>
+  );
+}
+
+/** Botón + modal para editar una asamblea (solo administración). */
+function EditAssembly({ assembly: a }: { assembly: Assembly }) {
+  const { date, time } = bogotaDateTime(a.scheduled_at);
+  return (
+    <Modal
+      title="Editar asamblea"
+      description={a.title}
+      icon="edit"
+      trigger="Editar"
+      triggerClassName={`${btnGhost} ${btnSm}`}
+      size="lg"
+    >
+      <ActionForm action={updateAssembly} submitLabel="Guardar cambios" pendingLabel="Guardando…">
+        <input type="hidden" name="id" value={a.id} />
+        <AssemblyFields
+          editing
+          defaults={{
+            title: a.title,
+            kind: a.kind,
+            date,
+            time,
+            location: a.location ?? "",
+            meetingUrl: a.meeting_url ?? "",
+            description: a.description ?? "",
+            status: a.status,
+            reminders: reminderKeysFor(a.scheduled_at, a.assembly_reminders),
+          }}
+        />
       </ActionForm>
     </Modal>
   );
@@ -160,7 +121,7 @@ async function AsambleasContent() {
   cutoff.setHours(cutoff.getHours() - 6);
   const cutoffIso = cutoff.toISOString();
   const columns =
-    "id, title, description, kind, scheduled_at, location, meeting_url, status, assembly_reminders(id, remind_at)";
+    "id, title, description, kind, scheduled_at, location, meeting_url, status, assembly_reminders(id, remind_at, sent_at)";
 
   const [upcomingRes, pastRes] = await Promise.all([
     supabase
@@ -236,13 +197,18 @@ async function AsambleasContent() {
                       .join(" · ")}
                   </p>
                 )}
-                {admin && a.status === "programada" && (
-                  <form action={cancelAssembly} className="mt-3">
-                    <input type="hidden" name="id" value={a.id} />
-                    <button type="submit" className={`${btnGhost} ${btnSm}`}>
-                      Cancelar asamblea
-                    </button>
-                  </form>
+                {admin && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <EditAssembly assembly={a} />
+                    {a.status === "programada" && (
+                      <form action={cancelAssembly}>
+                        <input type="hidden" name="id" value={a.id} />
+                        <button type="submit" className={`${btnGhost} ${btnSm}`}>
+                          Cancelar asamblea
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 )}
               </li>
             ))}
@@ -260,7 +226,10 @@ async function AsambleasContent() {
                   <p className="truncate font-medium text-ink">{a.title}</p>
                   <p className="text-xs text-muted">{fmtDateTime(a.scheduled_at)}</p>
                 </div>
-                <Badge tone={statusTone[a.status]}>{statusLabel[a.status]}</Badge>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge tone={statusTone[a.status]}>{statusLabel[a.status]}</Badge>
+                  {admin && <EditAssembly assembly={a} />}
+                </div>
               </li>
             ))}
           </ul>
