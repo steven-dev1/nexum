@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, isStaff } from "@/lib/auth";
 import type { ActionState } from "@/lib/action-state";
+import { pushInBackground, residentsOfUnit, sendPush } from "@/lib/push";
 
 const text = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim() || null;
 
@@ -49,6 +50,16 @@ export async function registerPackage(_prev: ActionState, formData: FormData): P
       : await supabase.from("packages").update({ photo_path: path }).eq("id", pkg.id);
     if (uploadError || linkError) photoWarning = " No se pudo guardar la foto.";
   }
+
+  const carrier = text(formData, "carrier");
+  pushInBackground(async () =>
+    sendPush(supabase, await residentsOfUnit(supabase, unitId), {
+      title: "Te llegó un paquete",
+      body: carrier ? `${carrier} dejó un paquete en portería.` : "Hay un paquete esperándote en portería.",
+      url: "/paqueteria",
+      tag: `paquete-${pkg.id}`,
+    }),
+  );
 
   revalidatePath("/paqueteria");
   revalidatePath("/");

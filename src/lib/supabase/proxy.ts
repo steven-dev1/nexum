@@ -11,6 +11,8 @@ const PUBLIC_PATHS = [
   "/icon",
   "/sw.js",
   "/offline",
+  // Llamada por la tarea programada (sin sesión); la protege el CRON_SECRET.
+  "/api/push/reminders",
 ];
 
 /**

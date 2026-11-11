@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getProfile, isAdmin } from "@/lib/auth";
 import { bogotaToIso } from "@/lib/format";
 import type { ActionState } from "@/lib/action-state";
+import { fmtDateTime } from "@/lib/format";
+import { pushInBackground, residentsOfAudience, sendPush } from "@/lib/push";
 import { REMINDERS, isReminderKey } from "./reminders";
 
 const text = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
@@ -66,6 +68,15 @@ export async function createAssembly(_prev: ActionState, formData: FormData): Pr
       return { error: "La asamblea se creó, pero no se pudieron programar los recordatorios." };
     }
   }
+
+  pushInBackground(async () =>
+    sendPush(supabase, await residentsOfAudience(supabase), {
+      title: "Nueva asamblea",
+      body: `${parsed.title} · ${fmtDateTime(parsed.scheduledAt)}`,
+      url: "/asambleas",
+      tag: `asamblea-${assembly.id}`,
+    }),
+  );
 
   revalidatePath("/asambleas");
   revalidatePath("/");

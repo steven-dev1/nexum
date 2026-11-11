@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { AdminNavLink, AppNav } from "@/components/app-nav";
 import { Brand } from "@/components/brand";
+import { PushToggle } from "@/components/push-toggle";
 import { MobileNav, SheetLink } from "@/components/mobile-nav";
 import { Badge, btnGhost } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -33,22 +34,25 @@ async function AdminSheetItem() {
 async function MobileAccount() {
   const profile = await getProfile();
   return (
-    <div className="rounded-2xl border border-line bg-bg p-4">
-      <div className="flex items-center gap-3">
-        <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-base font-bold text-on-primary">
-          {profile.fullName.charAt(0).toUpperCase()}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-ink">{profile.fullName}</p>
-          <p className="truncate text-xs text-muted">{profile.unitLabel ?? profile.email}</p>
+    <div className="space-y-3">
+      <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} />
+      <div className="rounded-2xl border border-line bg-bg p-4">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-base font-bold text-on-primary">
+            {profile.fullName.charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold text-ink">{profile.fullName}</p>
+            <p className="truncate text-xs text-muted">{profile.unitLabel ?? profile.email}</p>
+          </div>
+          <Badge tone={profile.role === "residente" ? "primary" : "accent"}>{roleLabel[profile.role]}</Badge>
         </div>
-        <Badge tone={profile.role === "residente" ? "primary" : "accent"}>{roleLabel[profile.role]}</Badge>
+        <form action={signOut} className="mt-4">
+          <button type="submit" className={`${btnGhost} w-full`}>
+            Cerrar sesión
+          </button>
+        </form>
       </div>
-      <form action={signOut} className="mt-4">
-        <button type="submit" className={`${btnGhost} w-full`}>
-          Cerrar sesión
-        </button>
-      </form>
     </div>
   );
 }
@@ -85,6 +89,9 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           }
         />
         <div className="mt-auto">
+          <div className="mb-3">
+            <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} />
+          </div>
           <Suspense fallback={<div className="mb-3 h-20 rounded-lg bg-surface-2" />}>
             <UserCard />
           </Suspense>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, isAdmin } from "@/lib/auth";
 import type { ActionState } from "@/lib/action-state";
+import { pushInBackground, residentsOfAudience, sendPush } from "@/lib/push";
 
 const text = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
 
@@ -37,8 +38,17 @@ export async function publishAnnouncement(_prev: ActionState, formData: FormData
   if ("error" in parsed) return { error: parsed.error };
 
   const supabase = await createClient();
-  const { error } = await supabase.from("announcements").insert(parsed.row);
-  if (error) return { error: "No se pudo publicar el comunicado." };
+  const { data: created, error } = await supabase.from("announcements").insert(parsed.row).select("id").single();
+  if (error || !created) return { error: "No se pudo publicar el comunicado." };
+
+  pushInBackground(async () =>
+    sendPush(supabase, await residentsOfAudience(supabase, parsed.row.tower), {
+      title: parsed.row.audience === "torre" ? `Aviso para la torre ${parsed.row.tower}` : "Nuevo comunicado",
+      body: parsed.row.title,
+      url: "/comunicados",
+      tag: `comunicado-${created.id}`,
+    }),
+  );
 
   revalidatePath("/comunicados");
   revalidatePath("/");
