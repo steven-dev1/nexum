@@ -71,4 +71,4 @@ export const popoverPanelCls =
 
 /** Disparador con aspecto de campo de texto. */
 export const pickerTriggerCls =
-  "flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-line bg-bg px-3.5 py-2.5 text-left text-[15px] text-ink transition-[border-color,box-shadow] hover:border-muted/50 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 focus-visible:outline-none aria-expanded:border-primary aria-expanded:ring-4 aria-expanded:ring-primary/20";
+  "flex w-full cursor-pointer items-center gap-2.5 rounded-xl border border-line bg-bg px-3.5 py-2.5 text-left text-base text-ink sm:text-[15px] transition-[border-color,box-shadow] hover:border-muted/50 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 focus-visible:outline-none aria-expanded:border-primary aria-expanded:ring-4 aria-expanded:ring-primary/20";

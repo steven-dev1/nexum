@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 /** Estilo común de campos (input, textarea, select y disparadores de los selectores). */
 export const inputCls =
-  "block w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 transition-[border-color,box-shadow] hover:border-muted/50 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60";
+  "block w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-base text-ink sm:text-[15px] placeholder:text-muted/70 transition-[border-color,box-shadow] hover:border-muted/50 focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/20 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60";
 export const labelCls = "mb-1.5 block text-[13px] font-semibold text-ink";
 
 /**

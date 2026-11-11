@@ -1,7 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login"];
+// Rutas accesibles sin sesión: el inicio de sesión y los recursos que el navegador pide
+// para instalar la PWA (manifest, íconos, service worker y página sin conexión).
+const PUBLIC_PATHS = [
+  "/login",
+  "/manifest.webmanifest",
+  "/pwa-icon",
+  "/apple-icon",
+  "/icon",
+  "/sw.js",
+  "/offline",
+];
 
 /**
  * Refresca la sesión de Supabase en cada request y redirige a /login

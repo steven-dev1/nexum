@@ -252,7 +252,7 @@ export function Select({
                   aria-label="Buscar opción"
                   aria-controls={listId}
                   aria-activedescendant={activeId}
-                  className="w-full rounded-lg border border-line bg-bg py-2 pl-9 pr-3 text-sm text-ink placeholder:text-muted/70 focus:border-primary focus:outline-none focus-visible:outline-none"
+                  className="w-full rounded-lg border border-line bg-bg py-2 pl-9 pr-3 text-base text-ink sm:text-sm placeholder:text-muted/70 focus:border-primary focus:outline-none focus-visible:outline-none"
                 />
               </div>
             )}

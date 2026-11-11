@@ -93,12 +93,12 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-line bg-surface px-4 py-3 md:hidden">
+        <header className="flex items-center justify-between border-b border-line bg-surface px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] md:hidden">
           <Brand />
           <ThemeToggle />
         </header>
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-28 md:px-8 md:py-8 md:pb-8">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 pb-[calc(7rem+env(safe-area-inset-bottom))] md:px-8 md:py-8 md:pb-8">
           {/* El <Suspense> de las páginas lo aporta (app)/loading.tsx. */}
           {children}
         </main>

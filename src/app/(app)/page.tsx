@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense, type ReactNode } from "react";
+import { InstallPrompt } from "@/components/install-prompt";
 import { Badge, Card, ContentSkeleton, PageHeader } from "@/components/ui";
 import { getProfile, isAdmin, isStaff, roleLabel, unitLabel } from "@/lib/auth";
 import { bogotaToIso, fmtDateTime, todayBogota } from "@/lib/format";
@@ -37,6 +38,7 @@ async function HomeContent() {
 
   return (
     <>
+      <InstallPrompt />
       <p className="mb-4 text-lg font-semibold text-ink">
         Hola, {firstName}{" "}
         <span className="font-normal text-muted">
