@@ -1,19 +1,55 @@
 import { Suspense } from "react";
 import { AdminNavLink, AppNav } from "@/components/app-nav";
 import { Brand } from "@/components/brand";
+import { MobileNav, SheetLink } from "@/components/mobile-nav";
 import { Badge, btnGhost } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getProfile, isAdmin, roleLabel } from "@/lib/auth";
 import { signOut } from "@/lib/actions/auth";
 
-/** Enlace a /admin: solo se renderiza para administradores. */
-async function AdminItem({ variant }: { variant: "side" | "bottom" }) {
+/** Enlace a /admin en la barra lateral: solo para administradores. */
+async function AdminItem() {
   const profile = await getProfile();
   if (!isAdmin(profile)) return null;
   return (
     <li>
-      <AdminNavLink variant={variant} />
+      <AdminNavLink variant="side" />
     </li>
+  );
+}
+
+/** Enlace a /admin en la hoja «Más» (celular): solo para administradores. */
+async function AdminSheetItem() {
+  const profile = await getProfile();
+  if (!isAdmin(profile)) return null;
+  return (
+    <li>
+      <SheetLink href="/admin" icon="shield" label="Administración" hint="Usuarios, unidades y zonas comunes" />
+    </li>
+  );
+}
+
+/** Cuenta en la hoja «Más» (celular): quién eres y cerrar sesión. */
+async function MobileAccount() {
+  const profile = await getProfile();
+  return (
+    <div className="rounded-2xl border border-line bg-bg p-4">
+      <div className="flex items-center gap-3">
+        <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-base font-bold text-on-primary">
+          {profile.fullName.charAt(0).toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-ink">{profile.fullName}</p>
+          <p className="truncate text-xs text-muted">{profile.unitLabel ?? profile.email}</p>
+        </div>
+        <Badge tone={profile.role === "residente" ? "primary" : "accent"}>{roleLabel[profile.role]}</Badge>
+      </div>
+      <form action={signOut} className="mt-4">
+        <button type="submit" className={`${btnGhost} w-full`}>
+          Cerrar sesión
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -24,9 +60,7 @@ async function UserCard() {
       <p className="truncate text-sm font-semibold text-ink">{profile.fullName}</p>
       <p className="mb-2 truncate text-xs text-muted">{profile.unitLabel ?? profile.email}</p>
       <div className="flex items-center justify-between gap-2">
-        <Badge tone={profile.role === "residente" ? "primary" : "accent"}>
-          {roleLabel[profile.role]}
-        </Badge>
+        <Badge tone={profile.role === "residente" ? "primary" : "accent"}>{roleLabel[profile.role]}</Badge>
         <form action={signOut}>
           <button type="submit" className={`${btnGhost} !px-2.5 !py-1 !text-xs`}>
             Salir
@@ -46,7 +80,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           variant="side"
           extra={
             <Suspense fallback={null}>
-              <AdminItem variant="side" />
+              <AdminItem />
             </Suspense>
           }
         />
@@ -70,19 +104,18 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         </main>
       </div>
 
-      <nav
-        aria-label="Navegación principal"
-        className="fixed inset-x-0 bottom-0 z-10 border-t border-line bg-surface md:hidden"
-      >
-        <AppNav
-          variant="bottom"
-          extra={
-            <Suspense fallback={null}>
-              <AdminItem variant="bottom" />
-            </Suspense>
-          }
-        />
-      </nav>
+      <MobileNav
+        adminSlot={
+          <Suspense fallback={null}>
+            <AdminSheetItem />
+          </Suspense>
+        }
+        account={
+          <Suspense fallback={<div className="h-28 rounded-2xl bg-surface-2" />}>
+            <MobileAccount />
+          </Suspense>
+        }
+      />
     </div>
   );
 }
