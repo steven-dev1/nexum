@@ -8,7 +8,7 @@ import { AttachmentLinks } from "@/components/attachment-links";
 import { signAttachmentUrls, type AttachmentView } from "@/lib/attachments";
 import { RichText } from "@/components/rich-text";
 import { docFromPlain, imagePathsOf, IMAGE_BUCKET, type RichNode } from "@/lib/rich-text";
-import { fmtDateTime } from "@/lib/format";
+import { bogotaDateTime, fmtDateTime } from "@/lib/format";
 import { groupName } from "@/lib/units";
 import { createClient } from "@/lib/supabase/server";
 import { deleteAnnouncement, markAsRead, publishAnnouncement, updateAnnouncement } from "./actions";
@@ -22,6 +22,7 @@ type Announcement = {
   body: string;
   content: RichNode | null;
   edited_at: string | null;
+  draft: boolean;
   attachments: AttachmentView[];
   audience: "todos" | "torre";
   tower: string | null;
@@ -135,7 +136,7 @@ async function ComunicadosContent() {
   const [listRes, readsRes, unitsRes] = await Promise.all([
     supabase
       .from("announcements")
-      .select("id, title, body, content, edited_at, audience, tower, pinned, published_at, attachments(id, name, size_bytes, file_path)")
+      .select("id, title, body, content, edited_at, draft, audience, tower, pinned, published_at, attachments(id, name, size_bytes, file_path)")
       .order("pinned", { ascending: false })
       .order("published_at", { ascending: false })
       .limit(30),
@@ -145,6 +146,9 @@ async function ComunicadosContent() {
   const towers = towersOf(unitsRes.data);
 
   const items = (listRes.data ?? []) as unknown as Announcement[];
+  const nowMs = new Date().getTime();
+  /** Borrador, programado o ya publicado (solo la administración ve los dos primeros). */
+  const stateOf = (a: Announcement) => (a.draft ? "borrador" : Date.parse(a.published_at) > nowMs ? "programado" : "publicado");
 
   const attachmentUrls = await signAttachmentUrls(
     supabase,
@@ -196,6 +200,7 @@ async function ComunicadosContent() {
             </Card>
           ) : (
             items.map((a) => {
+              const state = stateOf(a);
               const isRead = read.has(a.id);
               return (
                 <Card key={a.id} className={!isRead && !admin ? "border-l-4 !border-l-accent" : ""}>
@@ -204,6 +209,8 @@ async function ComunicadosContent() {
                     <div className="flex flex-wrap items-center gap-1.5">
                       {admin && <EditAnnouncement announcement={a} towers={towers} imageUrls={imageUrls} />}
                       {admin && <DeleteAnnouncement announcement={a} />}
+                      {state === "borrador" && <Badge tone="neutral">Borrador</Badge>}
+                      {state === "programado" && <Badge tone="primary">Programado</Badge>}
                       {a.pinned && <Badge tone="accent">Fijado</Badge>}
                       <Badge tone={a.audience === "torre" ? "primary" : "neutral"}>
                         {a.audience === "torre" ? groupName(a.tower) : "Todo el conjunto"}
@@ -211,7 +218,11 @@ async function ComunicadosContent() {
                     </div>
                   </div>
                   <p className="mt-0.5 text-xs text-muted">
-                    {fmtDateTime(a.published_at)}
+                    {state === "borrador"
+                      ? "Borrador · sin publicar"
+                      : state === "programado"
+                        ? `Se publica el ${fmtDateTime(a.published_at)}`
+                        : fmtDateTime(a.published_at)}
                     {a.edited_at && <span title={fmtDateTime(a.edited_at)}> · Editado</span>}
                   </p>
                   <div className="mt-3">
@@ -222,10 +233,10 @@ async function ComunicadosContent() {
                     )}
                     <AttachmentLinks items={a.attachments} urls={attachmentUrls} />
                   </div>
-                  {admin && (
+                  {admin && state === "publicado" && (
                     <ReadReceipts announcement={a} residents={residents} reads={readsByAnnouncement.get(a.id)} />
                   )}
-                  {!admin && (
+                  {!admin && state === "publicado" && (
                     <div className="mt-4">
                       {isRead ? (
                         <Badge tone="success">Leído</Badge>
@@ -247,6 +258,14 @@ async function ComunicadosContent() {
       </div>
     </>
   );
+}
+
+/** Opciones de publicación al editar: un comunicado ya publicado no vuelve a ser borrador. */
+function editPublish(a: Announcement) {
+  if (!a.draft && Date.parse(a.published_at) <= Date.now()) return null;
+  if (a.draft) return { mode: "borrador" as const };
+  const { date, time } = bogotaDateTime(a.published_at);
+  return { mode: "programar" as const, date, time };
 }
 
 /** Botón + modal para editar un comunicado (solo administración). */
@@ -277,6 +296,7 @@ function EditAnnouncement({
             doc: a.content ?? docFromPlain(a.body),
             imageUrls,
             attachments: a.attachments,
+            publish: editPublish(a),
             target: a.audience === "torre" ? `torre:${a.tower}` : "todos",
             pinned: a.pinned,
           }}

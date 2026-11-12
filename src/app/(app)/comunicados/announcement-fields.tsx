@@ -1,4 +1,5 @@
 import { AttachmentsField } from "@/components/attachments-field";
+import { PublishFields, type PublishMode } from "./publish-fields";
 import { RichEditor } from "@/components/rich-editor";
 import { Select } from "@/components/select";
 import { Field, inputCls } from "@/components/ui";
@@ -12,6 +13,8 @@ export type AnnouncementDefaults = {
   doc?: RichNode | null;
   imageUrls?: Record<string, string>;
   attachments?: AttachmentView[];
+  /** Solo al crear o al editar un borrador o programado; si ya está publicado no se muestra. */
+  publish?: { mode: PublishMode; date?: string; time?: string } | null;
   /** "todos" o "torre:<torre>" */
   target?: string;
   pinned?: boolean;
@@ -48,6 +51,13 @@ export function AnnouncementFields({ towers, defaults = {} }: { towers: string[]
           })),
         ]}
       />
+      {defaults.publish !== null && (
+        <PublishFields
+          defaultMode={defaults.publish?.mode}
+          defaultDate={defaults.publish?.date}
+          defaultTime={defaults.publish?.time}
+        />
+      )}
       <label className="flex items-center gap-2 text-sm text-ink">
         <input
           type="checkbox"

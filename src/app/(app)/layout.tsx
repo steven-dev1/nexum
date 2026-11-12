@@ -5,6 +5,7 @@ import { Brand } from "@/components/brand";
 import { PushToggle } from "@/components/push-toggle";
 import { MobileNav, SheetLink } from "@/components/mobile-nav";
 import { Badge, btnGhost } from "@/components/ui";
+import { WhatsappSettings } from "@/components/whatsapp-settings";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getProfile, isAdmin, roleLabel } from "@/lib/auth";
 import { signOut } from "@/lib/actions/auth";
@@ -37,6 +38,7 @@ async function MobileAccount() {
   return (
     <div className="space-y-3">
       <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} />
+      <WhatsappSettings />
       <div className="rounded-2xl border border-line bg-bg p-4">
         <div className="flex items-center gap-3">
           <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-base font-bold text-on-primary">
@@ -90,8 +92,11 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
           }
         />
         <div className="mt-auto">
-          <div className="mb-3">
+          <div className="mb-3 space-y-2">
             <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} />
+            <Suspense fallback={null}>
+              <WhatsappSettings />
+            </Suspense>
           </div>
           <Suspense fallback={<div className="mb-3 h-20 rounded-lg bg-surface-2" />}>
             <UserCard />

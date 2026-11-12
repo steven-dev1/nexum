@@ -16,6 +16,8 @@ const PUBLIC_PATHS = [
   "/offline",
   // Llamada por la tarea programada (sin sesión); la protege el CRON_SECRET.
   "/api/push/reminders",
+  // Estado del servicio para monitores externos.
+  "/api/health",
 ];
 
 /**

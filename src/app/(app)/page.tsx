@@ -81,7 +81,12 @@ async function StaffHome() {
         .gt("scheduled_at", nowIso)
         .order("scheduled_at")
         .limit(1),
-      supabase.from("announcements").select("id", { count: admin ? "exact" : undefined }).limit(100),
+      supabase
+        .from("announcements")
+        .select("id", { count: admin ? "exact" : undefined })
+        .eq("draft", false)
+        .lte("published_at", nowIso)
+        .limit(100),
       admin
         ? Promise.resolve({ data: [] as { announcement_id: string }[] })
         : supabase.from("announcement_reads").select("announcement_id").eq("user_id", profile.id),

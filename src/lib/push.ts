@@ -2,6 +2,7 @@ import "server-only";
 import { after } from "next/server";
 import { sendNotification, setVapidDetails } from "web-push";
 import type { createClient } from "@/lib/supabase/server";
+import { sendWhatsApp } from "@/lib/whatsapp";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -38,7 +39,7 @@ type Subscription = { id: string; endpoint: string; p256dh: string; auth: string
  * notificación no debe hacer fallar la acción que lo originó. Quita los dispositivos
  * que el servicio de push reporta como inexistentes (404/410).
  */
-export async function sendPush(supabase: Supabase, userIds: string[], payload: PushPayload): Promise<number> {
+async function sendWebPush(supabase: Supabase, userIds: string[], payload: PushPayload): Promise<number> {
   try {
     if (userIds.length === 0 || !configure()) return 0;
 
@@ -75,6 +76,18 @@ export async function sendPush(supabase: Supabase, userIds: string[], payload: P
     console.error("[push] error", error);
     return 0;
   }
+}
+
+/**
+ * Avisa por todos los canales: notificación push y, para quien lo activó, WhatsApp.
+ * Devuelve cuántas notificaciones push salieron. Nunca lanza.
+ */
+export async function sendPush(supabase: Supabase, userIds: string[], payload: PushPayload): Promise<number> {
+  const [pushed] = await Promise.all([
+    sendWebPush(supabase, userIds, payload),
+    sendWhatsApp(supabase, userIds, { title: payload.title, body: payload.body }),
+  ]);
+  return pushed;
 }
 
 /** Ejecuta el envío después de responder al usuario (no lo hace esperar). */

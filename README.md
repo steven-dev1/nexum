@@ -85,13 +85,49 @@ revierte al final (no deja datos ni usuarios de prueba). Esperado:
 | --- | --- | --- | --- |
 | `/paqueteria` | ve los de su unidad | registra y entrega | igual que portería |
 | `/reservas` | reserva y cancela las suyas | cancela cualquiera | cancela cualquiera |
-| `/asambleas` | consulta | consulta | convoca, cancela, programa recordatorios |
+| `/asambleas` | consulta, descarga adjuntos y vota (un voto por unidad) | consulta | convoca, adjunta PDF, crea y cierra votaciones |
+| `/comunicados` | lee y marca leído (segmentado por torre) | lee | publica, programa, guarda borradores, adjunta PDF |
+| `/directorio` | consulta teléfonos | consulta | administra los contactos |
 | `/admin/invitaciones` | — | — | crea, ve y cancela enlaces de invitación |
-| `/comunicados` | lee y marca leído (segmentado por torre) | lee | publica |
+
+## Comunicados programados
+
+Al crear un comunicado se elige **Publicar ahora**, **Programar** (fecha y hora) o **Guardar como borrador**.
+Los residentes solo ven lo ya publicado (lo exige la RLS, no solo la pantalla). El aviso de un comunicado
+programado lo envía el mismo cron de recordatorios (`/api/push/reminders`) cuando llega su hora, así que
+**ese cron debe estar activo** y correr cada 5–15 minutos.
+
+## Avisos por WhatsApp
+
+Es opcional y usa la **API de WhatsApp Business (Cloud API de Meta)**. Sin las variables de abajo, el envío se
+omite y el botón no aparece.
+
+| Variable | Descripción |
+| --- | --- |
+| `WHATSAPP_TOKEN` | Token de acceso permanente (usuario del sistema de Meta) |
+| `WHATSAPP_PHONE_ID` | Id del número de WhatsApp Business |
+| `WHATSAPP_TEMPLATE` | Nombre de la plantilla aprobada (por defecto `nexum_aviso`) |
+| `WHATSAPP_LANG` | Idioma de la plantilla (por defecto `es`) |
+
+Meta exige que los mensajes iniciados por la empresa usen una **plantilla aprobada**. Crea una de categoría
+*Utilidad* con dos variables, por ejemplo: `Nexum: *{{1}}*. {{2}}` ({{1}} = título, {{2}} = mensaje). Cada
+persona activa el aviso desde «Recibir avisos por WhatsApp» (celular + consentimiento); solo a ellas se escribe.
+Los avisos son los mismos que las notificaciones push: paquetes, comunicados, asambleas y votaciones.
+
+## Operación
+
+- **CI** (`.github/workflows/ci.yml`): lint, tipos, pruebas y build en cada push y pull request.
+  Dependabot propone actualizaciones semanales.
+- **Pruebas** (`npm test`, Vitest): lógica pura (texto enriquecido y su saneamiento, números de WhatsApp,
+  nombres y generador de unidades, invitaciones). Las reglas de acceso de la base se prueban con
+  `supabase/tests/rls.test.sql`.
+- **Estado del servicio**: `GET /api/health` responde 200 si la app y Supabase están arriba (503 si no).
+  Úsalo con UptimeRobot o Better Stack.
+- **Errores**: cada sección tiene su pantalla de error con «Reintentar» y un código (`digest`) para buscarlo
+  en Vercel → Logs. Para alertas y trazas más completas se puede sumar Sentry.
 
 ## Pendiente
 
-- Correo o WhatsApp además de push (hoy solo Web Push).
-- Verificación de quórum y votación en asambleas.
 - Seguridad y acceso: visitantes con QR, domiciliarios, placas.
-- CI (lint + typecheck + build) en cada push.
+- Quórum y coeficientes de copropiedad en las votaciones; poderes.
+- PQRS, cartera, correo electrónico.

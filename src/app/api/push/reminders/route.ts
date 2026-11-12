@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { sendNotification, setVapidDetails } from "web-push";
 import { fmtDateTime } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendWhatsApp } from "@/lib/whatsapp";
 
 /**
  * Envía los recordatorios de asamblea que ya vencieron (`assembly_reminders.remind_at <= ahora`).
@@ -54,6 +55,7 @@ export async function GET(request: Request) {
       url: "/asambleas",
       tag: `recordatorio-${reminder.id}`,
     });
+    await sendWhatsApp(admin, ids, { title: "Recordatorio de asamblea", body: `${assembly.title} · ${fmtDateTime(assembly.scheduled_at)}` });
     await Promise.all(
       (subs ?? []).map(async (s) => {
         try {
@@ -74,8 +76,16 @@ export async function GET(request: Request) {
       .delete()
       .in("id", [...new Set(gone)]);
 
-  const polls = await notifyPolls(admin, (ids, payload) => pushTo(admin, ids, payload));
-  return Response.json({ reminders: claimed?.length ?? 0, sent, polls });
+  const send = async (userIds: string[], payload: Payload) => {
+    const [pushed] = await Promise.all([
+      pushTo(admin, userIds, payload),
+      sendWhatsApp(admin, userIds, { title: payload.title, body: payload.body }),
+    ]);
+    return pushed;
+  };
+  const polls = await notifyPolls(admin, send);
+  const announcements = await notifyAnnouncements(admin, send);
+  return Response.json({ reminders: claimed?.length ?? 0, sent, polls, announcements });
 }
 
 type Admin = NonNullable<ReturnType<typeof createAdminClient>>;
@@ -161,4 +171,32 @@ async function notifyPolls(admin: Admin, send: (ids: string[], payload: Payload)
     });
   }
   return { reminded, closed };
+}
+
+/**
+ * Comunicados programados: cuando llega su hora de publicación, avisa a los destinatarios.
+ * Se «reclaman» (notified_at) antes de enviar para que cada uno salga una sola vez.
+ */
+async function notifyAnnouncements(admin: Admin, send: (ids: string[], payload: Payload) => Promise<number>) {
+  const { data: due } = await admin
+    .from("announcements")
+    .update({ notified_at: new Date().toISOString() })
+    .eq("draft", false)
+    .is("notified_at", null)
+    .lte("published_at", new Date().toISOString())
+    .select("id, title, body, audience, tower");
+
+  let notified = 0;
+  for (const a of due ?? []) {
+    const query = admin.from("profiles").select(a.tower ? "id, units!inner(tower)" : "id").eq("role", "residente");
+    const { data: residents } = a.tower ? await query.eq("units.tower", a.tower) : await query;
+    const ids = ((residents ?? []) as unknown as { id: string }[]).map((r) => r.id);
+    notified += await send(ids, {
+      title: a.audience === "torre" ? "Aviso para tu torre" : "Nuevo comunicado",
+      body: `${a.title} — ${a.body.split(/[ \t\r\n]+/).join(" ").slice(0, 100)}`,
+      url: "/comunicados",
+      tag: `comunicado-${a.id}`,
+    });
+  }
+  return { due: due?.length ?? 0, notified };
 }

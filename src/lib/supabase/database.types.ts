@@ -41,6 +41,8 @@ export interface Database {
           author_id: string | null;
           body: string;
           content: Json | null;
+          draft: boolean;
+          notified_at: string | null;
           edited_at: string | null;
           id: string;
           pinned: boolean;
@@ -53,6 +55,8 @@ export interface Database {
           author_id?: string | null;
           body: string;
           content?: Json | null;
+          draft?: boolean;
+          notified_at?: string | null;
           edited_at?: string | null;
           id?: string;
           pinned?: boolean;
@@ -65,6 +69,8 @@ export interface Database {
           author_id?: string | null;
           body?: string;
           content?: Json | null;
+          draft?: boolean;
+          notified_at?: string | null;
           edited_at?: string | null;
           id?: string;
           pinned?: boolean;
@@ -392,6 +398,42 @@ export interface Database {
           },
         ];
       };
+      directory_entries: {
+        Row: {
+          category: string;
+          created_at: string;
+          description: string | null;
+          has_whatsapp: boolean;
+          id: string;
+          name: string;
+          phone: string | null;
+          schedule: string | null;
+          sort_order: number;
+        };
+        Insert: {
+          category?: string;
+          created_at?: string;
+          description?: string | null;
+          has_whatsapp?: boolean;
+          id?: string;
+          name: string;
+          phone?: string | null;
+          schedule?: string | null;
+          sort_order?: number;
+        };
+        Update: {
+          category?: string;
+          created_at?: string;
+          description?: string | null;
+          has_whatsapp?: boolean;
+          id?: string;
+          name?: string;
+          phone?: string | null;
+          schedule?: string | null;
+          sort_order?: number;
+        };
+        Relationships: [];
+      };
       invitation_redemptions: {
         Row: {
           id: string;
@@ -526,6 +568,7 @@ export interface Database {
           phone: string | null;
           role: string;
           unit_id: string | null;
+          whatsapp_opt_in: boolean;
         };
         Insert: {
           created_at?: string;
@@ -535,6 +578,7 @@ export interface Database {
           phone?: string | null;
           role?: string;
           unit_id?: string | null;
+          whatsapp_opt_in?: boolean;
         };
         Update: {
           created_at?: string;
@@ -544,6 +588,7 @@ export interface Database {
           phone?: string | null;
           role?: string | null;
           unit_id?: string | null;
+          whatsapp_opt_in?: boolean;
         };
         Relationships: [
           {
@@ -639,6 +684,7 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      update_my_contact: { Args: { p_phone: string; p_whatsapp: boolean }; Returns: string };
       cast_vote: { Args: { p_option: string; p_poll: string }; Returns: string };
       poll_participation: { Args: { p_poll: string }; Returns: { total: number; voted: number }[] };
       poll_results: { Args: { p_poll: string }; Returns: { option_id: string; votes: number }[] };
