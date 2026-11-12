@@ -29,10 +29,26 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
     password,
     options: { data: { full_name: fullName } },
   });
-  if (error) return { error: error.message };
+  if (error) {
+    if (error.code === "user_already_exists") return { error: "Ya existe una cuenta con ese correo." };
+    if (error.code === "weak_password") return { error: "La contraseña es demasiado débil." };
+    return { error: error.message };
+  }
 
-  if (data.session) redirect("/");
-  return { ok: "Cuenta creada. Revisa tu correo para confirmarla y luego ingresa." };
+  // Con la confirmación de correo desactivada en Supabase, signUp ya devuelve
+  // sesión. Si no la devuelve, entramos con la misma contraseña para no pedir
+  // el paso extra; solo falla si el proyecto aún exige confirmar el correo.
+  if (!data.session) {
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      if (signInError.code === "email_not_confirmed") {
+        return { ok: "Cuenta creada. Revisa tu correo para confirmarla y luego ingresa." };
+      }
+      return { error: signInError.message };
+    }
+  }
+
+  redirect("/");
 }
 
 export async function signOut() {
