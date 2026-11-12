@@ -4,6 +4,8 @@ import { ActionForm } from "@/components/action-form";
 import { Modal } from "@/components/modal";
 import { Badge, Card, ContentSkeleton, Empty, PageHeader, btnDanger, btnGhost, btnSm } from "@/components/ui";
 import { getProfile, isAdmin, unitLabel } from "@/lib/auth";
+import { AttachmentLinks } from "@/components/attachment-links";
+import { signAttachmentUrls, type AttachmentView } from "@/lib/attachments";
 import { RichText } from "@/components/rich-text";
 import { docFromPlain, imagePathsOf, IMAGE_BUCKET, type RichNode } from "@/lib/rich-text";
 import { fmtDateTime } from "@/lib/format";
@@ -20,6 +22,7 @@ type Announcement = {
   body: string;
   content: RichNode | null;
   edited_at: string | null;
+  attachments: AttachmentView[];
   audience: "todos" | "torre";
   tower: string | null;
   pinned: boolean;
@@ -132,7 +135,7 @@ async function ComunicadosContent() {
   const [listRes, readsRes, unitsRes] = await Promise.all([
     supabase
       .from("announcements")
-      .select("id, title, body, content, edited_at, audience, tower, pinned, published_at")
+      .select("id, title, body, content, edited_at, audience, tower, pinned, published_at, attachments(id, name, size_bytes, file_path)")
       .order("pinned", { ascending: false })
       .order("published_at", { ascending: false })
       .limit(30),
@@ -142,6 +145,11 @@ async function ComunicadosContent() {
   const towers = towersOf(unitsRes.data);
 
   const items = (listRes.data ?? []) as unknown as Announcement[];
+
+  const attachmentUrls = await signAttachmentUrls(
+    supabase,
+    items.flatMap((i) => i.attachments),
+  );
 
   // URLs firmadas (1 h) de las imágenes de los comunicados visibles.
   const imageUrls: Record<string, string> = {};
@@ -212,6 +220,7 @@ async function ComunicadosContent() {
                     ) : (
                       <p className="whitespace-pre-line text-sm leading-6 text-ink">{a.body}</p>
                     )}
+                    <AttachmentLinks items={a.attachments} urls={attachmentUrls} />
                   </div>
                   {admin && (
                     <ReadReceipts announcement={a} residents={residents} reads={readsByAnnouncement.get(a.id)} />
@@ -267,6 +276,7 @@ function EditAnnouncement({
             title: a.title,
             doc: a.content ?? docFromPlain(a.body),
             imageUrls,
+            attachments: a.attachments,
             target: a.audience === "torre" ? `torre:${a.tower}` : "todos",
             pinned: a.pinned,
           }}

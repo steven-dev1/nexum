@@ -6,6 +6,7 @@ import { getProfile, isAdmin } from "@/lib/auth";
 import { groupName } from "@/lib/units";
 import type { Json } from "@/lib/supabase/database.types";
 import type { ActionState } from "@/lib/action-state";
+import { purgeAttachments, syncAttachments } from "@/lib/attachments";
 import { IMAGE_BUCKET, imagePathsOf, sanitizeDoc } from "@/lib/rich-text";
 import { pushInBackground, residentsOfAudience, sendPush } from "@/lib/push";
 
@@ -44,6 +45,7 @@ export async function publishAnnouncement(_prev: ActionState, formData: FormData
   const supabase = await createClient();
   const { data: created, error } = await supabase.from("announcements").insert(parsed.row).select("id").single();
   if (error || !created) return { error: "No se pudo publicar el comunicado." };
+  const attachError = await syncAttachments(supabase, { announcement_id: created.id }, formData);
 
   pushInBackground(async () =>
     sendPush(supabase, await residentsOfAudience(supabase, parsed.row.tower), {
@@ -56,6 +58,7 @@ export async function publishAnnouncement(_prev: ActionState, formData: FormData
 
   revalidatePath("/comunicados");
   revalidatePath("/");
+  if (attachError) return { error: `El comunicado se publicó, pero ${attachError.toLowerCase()}` };
   return { ok: "Comunicado publicado." };
 }
 
@@ -83,8 +86,11 @@ export async function updateAnnouncement(_prev: ActionState, formData: FormData)
   const removed = imagePathsOf(before?.content).filter((p) => !kept.has(p));
   if (removed.length) await supabase.storage.from(IMAGE_BUCKET).remove(removed);
 
+  const attachError = await syncAttachments(supabase, { announcement_id: id }, formData);
+
   revalidatePath("/comunicados");
   revalidatePath("/");
+  if (attachError) return { error: `El texto se guardó, pero ${attachError.toLowerCase()}` };
   return { ok: "Comunicado actualizado." };
 }
 
@@ -97,6 +103,7 @@ export async function deleteAnnouncement(_prev: ActionState, formData: FormData)
 
   const supabase = await createClient();
   const { data: before } = await supabase.from("announcements").select("content").eq("id", id).maybeSingle();
+  await purgeAttachments(supabase, "announcement_id", id);
   const { error } = await supabase.from("announcements").delete().eq("id", id);
   if (error) return { error: "No se pudo eliminar el comunicado." };
 

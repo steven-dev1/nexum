@@ -216,6 +216,182 @@ export interface Database {
           },
         ];
       };
+      attachments: {
+        Row: {
+          announcement_id: string | null;
+          assembly_id: string | null;
+          created_at: string;
+          created_by: string | null;
+          file_path: string;
+          id: string;
+          name: string;
+          size_bytes: number;
+        };
+        Insert: {
+          announcement_id?: string | null;
+          assembly_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          file_path: string;
+          id?: string;
+          name: string;
+          size_bytes: number;
+        };
+        Update: {
+          announcement_id?: string | null;
+          assembly_id?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          file_path?: string;
+          id?: string;
+          name?: string;
+          size_bytes?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "attachments_announcement_id_fkey";
+            columns: ["announcement_id"];
+            isOneToOne: false;
+            referencedRelation: "announcements";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "attachments_assembly_id_fkey";
+            columns: ["assembly_id"];
+            isOneToOne: false;
+            referencedRelation: "assemblies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      poll_options: {
+        Row: {
+          id: string;
+          label: string;
+          poll_id: string;
+          position: number;
+        };
+        Insert: {
+          id?: string;
+          label: string;
+          poll_id: string;
+          position?: number;
+        };
+        Update: {
+          id?: string;
+          label?: string;
+          poll_id?: string;
+          position?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "poll_options_poll_id_fkey";
+            columns: ["poll_id"];
+            isOneToOne: false;
+            referencedRelation: "polls";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      poll_votes: {
+        Row: {
+          option_id: string;
+          poll_id: string;
+          unit_id: string;
+          voted_at: string;
+          voted_by: string | null;
+        };
+        Insert: {
+          option_id: string;
+          poll_id: string;
+          unit_id: string;
+          voted_at?: string;
+          voted_by?: string | null;
+        };
+        Update: {
+          option_id?: string;
+          poll_id?: string;
+          unit_id?: string;
+          voted_at?: string;
+          voted_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "poll_votes_option_id_fkey";
+            columns: ["option_id"];
+            isOneToOne: false;
+            referencedRelation: "poll_options";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "poll_votes_poll_id_fkey";
+            columns: ["poll_id"];
+            isOneToOne: false;
+            referencedRelation: "polls";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "poll_votes_unit_id_fkey";
+            columns: ["unit_id"];
+            isOneToOne: false;
+            referencedRelation: "units";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      polls: {
+        Row: {
+          assembly_id: string;
+          closed_at: string | null;
+          closes_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          description: string | null;
+          id: string;
+          mode: string;
+          question: string;
+          reminder_sent_at: string | null;
+          results_sent_at: string | null;
+          status: string;
+        };
+        Insert: {
+          assembly_id: string;
+          closed_at?: string | null;
+          closes_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          mode?: string;
+          question: string;
+          reminder_sent_at?: string | null;
+          results_sent_at?: string | null;
+          status?: string;
+        };
+        Update: {
+          assembly_id?: string;
+          closed_at?: string | null;
+          closes_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          id?: string;
+          mode?: string;
+          question?: string;
+          reminder_sent_at?: string | null;
+          results_sent_at?: string | null;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "polls_assembly_id_fkey";
+            columns: ["assembly_id"];
+            isOneToOne: false;
+            referencedRelation: "assemblies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       invitation_redemptions: {
         Row: {
           id: string;
@@ -463,6 +639,9 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      cast_vote: { Args: { p_option: string; p_poll: string }; Returns: string };
+      poll_participation: { Args: { p_poll: string }; Returns: { total: number; voted: number }[] };
+      poll_results: { Args: { p_poll: string }; Returns: { option_id: string; votes: number }[] };
       invitation_info: {
         Args: { p_token: string };
         Returns: {

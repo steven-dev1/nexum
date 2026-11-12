@@ -6,6 +6,7 @@ import { getProfile, isAdmin } from "@/lib/auth";
 import { bogotaToIso } from "@/lib/format";
 import type { ActionState } from "@/lib/action-state";
 import { fmtDateTime } from "@/lib/format";
+import { syncAttachments } from "@/lib/attachments";
 import { pushInBackground, residentsOfAudience, sendPush } from "@/lib/push";
 import { REMINDERS, isReminderKey } from "./reminders";
 
@@ -60,6 +61,7 @@ export async function createAssembly(_prev: ActionState, formData: FormData): Pr
   const { data: assembly, error } = await supabase.from("assemblies").insert(parsed.row).select("id").single();
   if (error || !assembly) return { error: "No se pudo crear la asamblea." };
 
+  const attachError = await syncAttachments(supabase, { assembly_id: assembly.id }, formData);
   const reminders = buildReminders(assembly.id, parsed.title, parsed.scheduledAt, parsed.reminderKeys);
   if (reminders.length > 0) {
     const { error: remindersError } = await supabase.from("assembly_reminders").insert(reminders);
@@ -80,6 +82,7 @@ export async function createAssembly(_prev: ActionState, formData: FormData): Pr
 
   revalidatePath("/asambleas");
   revalidatePath("/");
+  if (attachError) return { error: `La asamblea se convocó, pero ${attachError.toLowerCase()}` };
   return { ok: "Asamblea convocada." };
 }
 
@@ -108,6 +111,8 @@ export async function updateAssembly(_prev: ActionState, formData: FormData): Pr
     .select("id");
   if (error || !data || data.length === 0) return { error: "No se pudo guardar la asamblea." };
 
+  const attachError = await syncAttachments(supabase, { assembly_id: id }, formData);
+
   const { error: deleteError } = await supabase
     .from("assembly_reminders")
     .delete()
@@ -123,6 +128,7 @@ export async function updateAssembly(_prev: ActionState, formData: FormData): Pr
   if (deleteError || insertError) {
     return { error: "La asamblea se guardó, pero no se pudieron reprogramar los recordatorios." };
   }
+  if (attachError) return { error: `La asamblea se guardó, pero ${attachError.toLowerCase()}` };
   return { ok: "Asamblea actualizada." };
 }
 

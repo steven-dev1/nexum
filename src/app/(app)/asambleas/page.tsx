@@ -6,9 +6,12 @@ import { Badge, Card, ContentSkeleton, Empty, PageHeader, SectionTitle, btnGhost
 import { getProfile, isAdmin } from "@/lib/auth";
 import { bogotaDateTime, fmtDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
+import { AttachmentLinks } from "@/components/attachment-links";
+import { signAttachmentUrls, type AttachmentView } from "@/lib/attachments";
 import { cancelAssembly, createAssembly, updateAssembly } from "./actions";
 import { AssemblyFields } from "./assembly-fields";
 import { reminderKeysFor } from "./reminders";
+import { PollsSection, loadPolls } from "./polls-section";
 
 export const metadata: Metadata = { title: "Asambleas" };
 
@@ -22,6 +25,7 @@ type Assembly = {
   meeting_url: string | null;
   status: "programada" | "en_curso" | "finalizada" | "cancelada";
   assembly_reminders: { id: string; remind_at: string; sent_at: string | null }[];
+  attachments: AttachmentView[];
 };
 
 const statusTone = {
@@ -104,6 +108,7 @@ function EditAssembly({ assembly: a }: { assembly: Assembly }) {
             description: a.description ?? "",
             status: a.status,
             reminders: reminderKeysFor(a.scheduled_at, a.assembly_reminders),
+            attachments: a.attachments,
           }}
         />
       </ActionForm>
@@ -121,7 +126,7 @@ async function AsambleasContent() {
   cutoff.setHours(cutoff.getHours() - 6);
   const cutoffIso = cutoff.toISOString();
   const columns =
-    "id, title, description, kind, scheduled_at, location, meeting_url, status, assembly_reminders(id, remind_at, sent_at)";
+    "id, title, description, kind, scheduled_at, location, meeting_url, status, assembly_reminders(id, remind_at, sent_at), attachments(id, name, size_bytes, file_path)";
 
   const [upcomingRes, pastRes] = await Promise.all([
     supabase
@@ -138,8 +143,22 @@ async function AsambleasContent() {
       .limit(15),
   ]);
 
-  const upcoming = (upcomingRes.data ?? []) as Assembly[];
-  const past = (pastRes.data ?? []) as Assembly[];
+  const upcoming = (upcomingRes.data ?? []) as unknown as Assembly[];
+  const past = (pastRes.data ?? []) as unknown as Assembly[];
+
+  const [pollsByAssembly, attachmentUrls] = await Promise.all([
+    loadPolls(
+      supabase,
+      [...upcoming, ...past].map((a) => a.id),
+      profile,
+      admin,
+    ),
+    signAttachmentUrls(
+      supabase,
+      [...upcoming, ...past].flatMap((a) => a.attachments),
+    ),
+  ]);
+  const canVote = profile.role === "residente" && !!profile.unitId;
 
   return (
     <div className="space-y-6">
@@ -197,6 +216,13 @@ async function AsambleasContent() {
                       .join(" · ")}
                   </p>
                 )}
+                <AttachmentLinks items={a.attachments} urls={attachmentUrls} />
+                <PollsSection
+                  polls={pollsByAssembly.get(a.id) ?? []}
+                  assemblyId={a.id}
+                  admin={admin}
+                  canVote={canVote}
+                />
                 {admin && (
                   <div className="mt-3 flex flex-wrap gap-2">
                     <EditAssembly assembly={a} />
@@ -221,15 +247,26 @@ async function AsambleasContent() {
           <SectionTitle>Anteriores</SectionTitle>
           <ul className="divide-y divide-line">
             {past.map((a) => (
-              <li key={a.id} className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0">
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-ink">{a.title}</p>
-                  <p className="text-xs text-muted">{fmtDateTime(a.scheduled_at)}</p>
+              <li key={a.id} className="py-2.5 first:pt-0 last:pb-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-ink">{a.title}</p>
+                    <p className="text-xs text-muted">{fmtDateTime(a.scheduled_at)}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Badge tone={statusTone[a.status]}>{statusLabel[a.status]}</Badge>
+                    {admin && <EditAssembly assembly={a} />}
+                  </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Badge tone={statusTone[a.status]}>{statusLabel[a.status]}</Badge>
-                  {admin && <EditAssembly assembly={a} />}
-                </div>
+                <AttachmentLinks items={a.attachments} urls={attachmentUrls} />
+                {((pollsByAssembly.get(a.id)?.length ?? 0) > 0 || admin) && (
+                  <PollsSection
+                    polls={pollsByAssembly.get(a.id) ?? []}
+                    assemblyId={a.id}
+                    admin={admin}
+                    canVote={canVote}
+                  />
+                )}
               </li>
             ))}
           </ul>

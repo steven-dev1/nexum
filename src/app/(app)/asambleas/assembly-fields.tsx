@@ -1,7 +1,9 @@
+import { AttachmentsField } from "@/components/attachments-field";
 import { DatePicker } from "@/components/date-picker";
 import { Select } from "@/components/select";
 import { TimePicker } from "@/components/time-picker";
 import { Field, inputCls, labelCls } from "@/components/ui";
+import type { AttachmentView } from "@/lib/attachments";
 import { todayBogota } from "@/lib/format";
 import { REMINDERS, type ReminderKey } from "./reminders";
 
@@ -15,6 +17,7 @@ export type AssemblyDefaults = {
   description?: string;
   status?: string;
   reminders?: ReminderKey[];
+  attachments?: AttachmentView[];
 };
 
 /** Campos de una asamblea (convocar o editar). Al editar se agrega el estado. */
@@ -90,6 +93,8 @@ export function AssemblyFields({ defaults = {}, editing = false }: { defaults?: 
       <Field label="Orden del día / descripción">
         <textarea name="description" rows={4} defaultValue={defaults.description} className={inputCls} />
       </Field>
+
+      <AttachmentsField existing={defaults.attachments} />
 
       <fieldset>
         <legend className="mb-2 text-sm font-medium text-ink">Recordatorios</legend>
