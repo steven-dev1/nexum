@@ -151,6 +151,107 @@ export interface Database {
         };
         Relationships: [];
       };
+      vehicle_access_log: {
+        Row: {
+          at: string;
+          direction: string;
+          id: string;
+          method: string;
+          plate: string;
+          recorded_by: string | null;
+          result: string;
+          transcript: string | null;
+          unit_id: string | null;
+          vehicle_id: string | null;
+          voided_at: string | null;
+        };
+        Insert: {
+          at?: string;
+          direction: string;
+          id?: string;
+          method?: string;
+          plate: string;
+          recorded_by?: string | null;
+          result: string;
+          transcript?: string | null;
+          unit_id?: string | null;
+          vehicle_id?: string | null;
+          voided_at?: string | null;
+        };
+        Update: {
+          at?: string;
+          direction?: string;
+          id?: string;
+          method?: string;
+          plate?: string;
+          recorded_by?: string | null;
+          result?: string;
+          transcript?: string | null;
+          unit_id?: string | null;
+          vehicle_id?: string | null;
+          voided_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_access_log_unit_id_fkey";
+            columns: ["unit_id"];
+            isOneToOne: false;
+            referencedRelation: "units";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "vehicle_access_log_vehicle_id_fkey";
+            columns: ["vehicle_id"];
+            isOneToOne: false;
+            referencedRelation: "vehicles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      vehicles: {
+        Row: {
+          active: boolean;
+          brand: string | null;
+          color: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          kind: string;
+          plate: string;
+          unit_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          brand?: string | null;
+          color?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          kind?: string;
+          plate: string;
+          unit_id: string;
+        };
+        Update: {
+          active?: boolean;
+          brand?: string | null;
+          color?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          kind?: string;
+          plate?: string;
+          unit_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_unit_id_fkey";
+            columns: ["unit_id"];
+            isOneToOne: false;
+            referencedRelation: "units";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       units: {
         Row: {
           floor: number | null;

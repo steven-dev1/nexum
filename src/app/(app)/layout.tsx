@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { AdminNavLink, AppNav } from "@/components/app-nav";
+import { AdminNavLink, AppNav, RoleNavLink } from "@/components/app-nav";
 import { BackgroundRefresh } from "@/components/background-refresh";
 import { Brand } from "@/components/brand";
 import { PushToggle } from "@/components/push-toggle";
@@ -7,8 +7,48 @@ import { MobileNav, SheetLink } from "@/components/mobile-nav";
 import { Badge, btnGhost } from "@/components/ui";
 import { WhatsappSettings } from "@/components/whatsapp-settings";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { getProfile, isAdmin, roleLabel } from "@/lib/auth";
+import { getProfile, isAdmin, isStaff, roleLabel } from "@/lib/auth";
 import { signOut } from "@/lib/actions/auth";
+
+/** Enlaces por rol en la barra lateral: Accesos (portería y admin) y Vehículos (residentes y admin). */
+async function RoleItems() {
+  const profile = await getProfile();
+  const vehicles = isAdmin(profile) || (profile.role === "residente" && !!profile.unitId);
+  return (
+    <>
+      {isStaff(profile) && (
+        <li>
+          <RoleNavLink which="accesos" variant="side" />
+        </li>
+      )}
+      {vehicles && (
+        <li>
+          <RoleNavLink which="vehiculos" variant="side" />
+        </li>
+      )}
+    </>
+  );
+}
+
+/** Lo mismo en la hoja «Más» (celular). */
+async function RoleSheetItems() {
+  const profile = await getProfile();
+  const vehicles = isAdmin(profile) || (profile.role === "residente" && !!profile.unitId);
+  return (
+    <>
+      {isStaff(profile) && (
+        <li>
+          <SheetLink href="/accesos" icon="car" label="Accesos" hint="Ingreso de vehículos por voz" />
+        </li>
+      )}
+      {vehicles && (
+        <li>
+          <SheetLink href="/vehiculos" icon="car" label="Vehículos" hint="Placas autorizadas de tu unidad" />
+        </li>
+      )}
+    </>
+  );
+}
 
 /** Enlace a /admin en la barra lateral: solo para administradores. */
 async function AdminItem() {
@@ -86,9 +126,14 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         <AppNav
           variant="side"
           extra={
-            <Suspense fallback={null}>
-              <AdminItem />
-            </Suspense>
+            <>
+              <Suspense fallback={null}>
+                <RoleItems />
+              </Suspense>
+              <Suspense fallback={null}>
+                <AdminItem />
+              </Suspense>
+            </>
           }
         />
         <div className="mt-auto">
@@ -120,9 +165,14 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       <BackgroundRefresh />
       <MobileNav
         adminSlot={
-          <Suspense fallback={null}>
-            <AdminSheetItem />
-          </Suspense>
+          <>
+            <Suspense fallback={null}>
+              <RoleSheetItems />
+            </Suspense>
+            <Suspense fallback={null}>
+              <AdminSheetItem />
+            </Suspense>
+          </>
         }
         account={
           <Suspense fallback={<div className="h-28 rounded-2xl bg-surface-2" />}>

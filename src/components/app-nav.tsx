@@ -78,6 +78,18 @@ export function AppNav({ variant, extra }: { variant: "side" | "bottom"; extra?:
   );
 }
 
+const roleItems = {
+  accesos: { href: "/accesos", label: "Accesos", icon: icon(<><path d="M5 17h14M3 13l2-6a2 2 0 0 1 1.9-1.4h10.2A2 2 0 0 1 19 7l2 6v4a1 1 0 0 1-1 1h-1.5a1.5 1.5 0 0 1-3 0h-7a1.5 1.5 0 0 1-3 0H4a1 1 0 0 1-1-1v-4z" /><path d="M3 13h18" /></>) },
+  vehiculos: { href: "/vehiculos", label: "Vehículos", icon: icon(<><path d="M5 17h14M3 13l2-6a2 2 0 0 1 1.9-1.4h10.2A2 2 0 0 1 19 7l2 6v4a1 1 0 0 1-1 1h-1.5a1.5 1.5 0 0 1-3 0h-7a1.5 1.5 0 0 1-3 0H4a1 1 0 0 1-1-1v-4z" /><path d="M3 13h18" /></>) },
+} satisfies Record<string, Item>;
+
+/** Enlaces que dependen del rol: «Accesos» (portería y admin) y «Vehículos» (residentes y admin). */
+export function RoleNavLink({ which, variant }: { which: keyof typeof roleItems; variant: "side" | "bottom" }) {
+  const pathname = usePathname();
+  const item = roleItems[which];
+  return <NavItem item={item} variant={variant} active={isActive(pathname, item.href)} />;
+}
+
 export function AdminNavLink({ variant }: { variant: "side" | "bottom" }) {
   const pathname = usePathname();
   return <NavItem item={adminItem} variant={variant} active={isActive(pathname, adminItem.href)} />;

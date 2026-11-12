@@ -87,8 +87,27 @@ revierte al final (no deja datos ni usuarios de prueba). Esperado:
 | `/reservas` | reserva y cancela las suyas | cancela cualquiera | cancela cualquiera |
 | `/asambleas` | consulta, descarga adjuntos y vota (un voto por unidad) | consulta | convoca, adjunta PDF, crea y cierra votaciones |
 | `/comunicados` | lee y marca leído (segmentado por torre) | lee | publica, programa, guarda borradores, adjunta PDF |
+| `/vehiculos` | registra los vehículos de su unidad | — | administra todos |
+| `/accesos` | — | registra ingresos y salidas de vehículos (por voz) | igual que portería |
 | `/directorio` | consulta teléfonos | consulta | administra los contactos |
 | `/admin/invitaciones` | — | — | crea, ve y cancela enlaces de invitación |
+
+## Acceso de vehículos por voz
+
+En **Accesos** (portería y administración) el portero toca el micrófono (o la barra espaciadora) y dice
+«**ingresa placa ABC123**» o «**sale placa ABC123**». El sistema interpreta la placa (letras sueltas, nombres de
+letra como «a be ce», alfabeto fonético y números hablados), la busca entre los **vehículos registrados**
+(`/vehiculos`) y registra el movimiento en la bitácora con voz de confirmación:
+
+- Registrada y activa → **autorizado** (unidad, tipo, marca y color), con «Deshacer».
+- No registrada o inactiva → se rechaza, queda el intento en la bitácora y se sugieren placas parecidas
+  (error típico de dictado) para confirmar con un toque. Nunca se autoriza una coincidencia aproximada sola.
+- Ya figura dentro (o no figura dentro al salir) → pide confirmar antes de registrar.
+
+Siempre hay un campo de placa manual como respaldo. Requisitos: HTTPS, permiso de micrófono y un navegador con
+reconocimiento de voz (Chrome, Edge o Safari; no Firefox). En Chrome el audio lo procesan los servidores de
+Google. La bitácora no se edita: solo se puede anular un movimiento. No abre talanquera; eso sería una fase
+posterior (webhook o relé).
 
 ## Comunicados programados
 
