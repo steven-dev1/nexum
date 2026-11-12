@@ -87,13 +87,15 @@ async function ReservasContent() {
 
   const [amenitiesRes, reservationsRes, bookings] = await Promise.all([
     supabase.from("amenities").select(amenityColumns).eq("active", true).order("name"),
-    supabase
-      .from("reservations")
-      .select("id, user_id, amenity_id, starts_at, ends_at, notes, amenities(name), units(tower, number)")
-      .eq("status", "confirmada")
-      .gt("ends_at", new Date().toISOString())
-      .order("starts_at")
-      .limit(50),
+    staff
+      ? supabase
+          .from("reservations")
+          .select("id, user_id, amenity_id, starts_at, ends_at, notes, amenities(name), units(tower, number)")
+          .eq("status", "confirmada")
+          .gt("ends_at", new Date().toISOString())
+          .order("starts_at")
+          .limit(50)
+      : Promise.resolve({ data: [] as Reservation[] }),
     getBookings(supabase, { withUnits: staff }),
   ]);
 
@@ -132,33 +134,29 @@ async function ReservasContent() {
         )}
       </Card>
 
-      <Card>
-        <SectionTitle>Próximas reservas</SectionTitle>
-        {reservations.length === 0 ? (
-          <Empty>No hay reservas próximas.</Empty>
-        ) : (
-          <ul className="divide-y divide-line">
-            {reservations.map((r) => {
-              const mine = !staff && r.user_id === profile.id;
-              const canManage = mine || staff;
-              const notStarted = Date.parse(r.starts_at) > Date.parse(now);
-              const start = bogotaDateTime(r.starts_at);
-              const end = bogotaDateTime(r.ends_at);
-              return (
-                <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-ink">
-                      {r.amenities?.name} {mine && <Badge tone="accent">Tuya</Badge>}
-                    </p>
-                    <p className="text-sm text-muted">
-                      {fmtDate(r.starts_at)} · {fmtTime(r.starts_at)} – {fmtTime(r.ends_at)}
-                    </p>
-                    <p className="text-xs text-muted">
-                      {unitLabel(r.units)}
-                      {r.notes ? ` · ${r.notes}` : ""}
-                    </p>
-                  </div>
-                  {canManage && (
+      {staff && (
+        <Card>
+          <SectionTitle>Próximas reservas</SectionTitle>
+          {reservations.length === 0 ? (
+            <Empty>No hay reservas próximas.</Empty>
+          ) : (
+            <ul className="divide-y divide-line">
+              {reservations.map((r) => {
+                const notStarted = Date.parse(r.starts_at) > Date.parse(now);
+                const start = bogotaDateTime(r.starts_at);
+                const end = bogotaDateTime(r.ends_at);
+                return (
+                  <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">{r.amenities?.name}</p>
+                      <p className="text-sm text-muted">
+                        {fmtDate(r.starts_at)} · {fmtTime(r.starts_at)} – {fmtTime(r.ends_at)}
+                      </p>
+                      <p className="text-xs text-muted">
+                        {unitLabel(r.units)}
+                        {r.notes ? ` · ${r.notes}` : ""}
+                      </p>
+                    </div>
                     <div className="flex gap-2">
                       {notStarted && (
                         <Modal
@@ -196,13 +194,13 @@ async function ReservasContent() {
                         </button>
                       </form>
                     </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </Card>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+      )}
 
       {amenities.length > 0 && (
         <Card>
