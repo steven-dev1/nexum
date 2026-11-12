@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { AdminNavLink, AppNav } from "@/components/app-nav";
+import { BackgroundRefresh } from "@/components/background-refresh";
 import { Brand } from "@/components/brand";
 import { PushToggle } from "@/components/push-toggle";
 import { MobileNav, SheetLink } from "@/components/mobile-nav";
@@ -111,6 +112,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
         </main>
       </div>
 
+      <BackgroundRefresh />
       <MobileNav
         adminSlot={
           <Suspense fallback={null}>

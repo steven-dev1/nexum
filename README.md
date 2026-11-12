@@ -33,12 +33,22 @@ where id = (select id from auth.users where email = 'tu@correo.com');
 Roles: `admin` (administración), `porteria`, `residente`. Los residentes necesitan una
 `unit_id` asignada en `profiles` para reservar y ver sus paquetes.
 
-### Registro sin confirmación de correo
+### Acceso por invitación
 
-Para que quien se registre entre enseguida (sin abrir el correo), desactiva la
-confirmación en **Supabase Dashboard → Authentication → Sign In / Providers →
-Email → Confirm email**. La app ya entra sola en cuanto se crea la cuenta; si
-la confirmación sigue activada, muestra el mensaje de "revisa tu correo".
+Nadie entra al conjunto solo por crear una cuenta. Un usuario es **miembro** (ve paquetes,
+reservas, comunicados, asambleas…) cuando es personal o es residente con unidad; se llega a serlo
+canjeando un enlace que genera la administración en **Administración → Invitaciones**:
+
+- elige la unidad (o «Portería»), **cuánto vale** (1 h, 6 h, 24 h, 3, 7, 15, 30 días o fecha y hora
+  exactas, hasta 90 días) y para **cuántas personas** sirve;
+- el enlace se muestra una sola vez (en la base solo queda su hash) con botones de copiar y WhatsApp;
+- se puede cancelar en cualquier momento y se ve quién lo canjeó;
+- quien ya tiene cuenta pero no acceso entra a **/acceso** y pega el enlace.
+
+La seguridad no depende de la pantalla: la RLS exige `private.is_member()` para leer, así que una
+cuenta creada por fuera de la app no ve nada. Con la confirmación de correo desactivada en Supabase
+(Authentication → Sign In / Providers → Email → Confirm email) quien llega con un enlace entra
+enseguida; si sigue activada, se le pide confirmar y volver a abrir el enlace.
 
 ### Recordatorios de asamblea automáticos
 
@@ -76,6 +86,7 @@ revierte al final (no deja datos ni usuarios de prueba). Esperado:
 | `/paqueteria` | ve los de su unidad | registra y entrega | igual que portería |
 | `/reservas` | reserva y cancela las suyas | cancela cualquiera | cancela cualquiera |
 | `/asambleas` | consulta | consulta | convoca, cancela, programa recordatorios |
+| `/admin/invitaciones` | — | — | crea, ve y cancela enlaces de invitación |
 | `/comunicados` | lee y marca leído (segmentado por torre) | lee | publica |
 
 ## Pendiente

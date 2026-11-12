@@ -7,6 +7,7 @@ const dateTime = new Intl.DateTimeFormat("es-CO", {
   timeZone: TZ,
 });
 const date = new Intl.DateTimeFormat("es-CO", { dateStyle: "long", timeZone: TZ });
+const dateShort = new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeZone: TZ });
 const time = new Intl.DateTimeFormat("es-CO", { timeStyle: "short", timeZone: TZ });
 const cop = new Intl.NumberFormat("es-CO", {
   style: "currency",
@@ -15,6 +16,7 @@ const cop = new Intl.NumberFormat("es-CO", {
 });
 
 export const fmtDateTime = (iso: string) => dateTime.format(new Date(iso));
+export const fmtDateShort = (iso: string) => dateShort.format(new Date(iso));
 export const fmtDate = (iso: string) => date.format(new Date(iso));
 export const fmtTime = (iso: string) => time.format(new Date(iso));
 export const fmtCop = (n: number) => cop.format(n);
@@ -27,8 +29,7 @@ export const fmtHours = (open: string, close: string) =>
   `${hhmm(open)} – ${hhmm(close)}${close <= open ? " (día siguiente)" : ""}`;
 
 /** Fecha de hoy en Colombia como YYYY-MM-DD (para atributos `min` de inputs). */
-export const todayBogota = () =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
+export const todayBogota = () => new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
 
 const bogotaParts = new Intl.DateTimeFormat("en-CA", {
   timeZone: TZ,

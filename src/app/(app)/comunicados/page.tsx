@@ -5,6 +5,7 @@ import { Modal } from "@/components/modal";
 import { Badge, Card, ContentSkeleton, Empty, PageHeader, btnDanger, btnGhost, btnSm } from "@/components/ui";
 import { getProfile, isAdmin, unitLabel } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
+import { groupName } from "@/lib/units";
 import { createClient } from "@/lib/supabase/server";
 import { deleteAnnouncement, markAsRead, publishAnnouncement, updateAnnouncement } from "./actions";
 import { AnnouncementFields, towersOf } from "./announcement-fields";
@@ -185,7 +186,7 @@ async function ComunicadosContent() {
                       {admin && <DeleteAnnouncement announcement={a} />}
                       {a.pinned && <Badge tone="accent">Fijado</Badge>}
                       <Badge tone={a.audience === "torre" ? "primary" : "neutral"}>
-                        {a.audience === "torre" ? `Torre ${a.tower}` : "Todo el conjunto"}
+                        {a.audience === "torre" ? groupName(a.tower) : "Todo el conjunto"}
                       </Badge>
                     </div>
                   </div>

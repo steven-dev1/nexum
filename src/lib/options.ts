@@ -1,4 +1,5 @@
 import type { SelectOption } from "@/components/select";
+import { groupName, unitFullLabel, unitNumberLabel } from "@/lib/units";
 
 type Unit = { id: string; tower: string; number: string };
 
@@ -6,8 +7,8 @@ type Unit = { id: string; tower: string; number: string };
 export function unitOptions(units: Unit[]): SelectOption[] {
   return units.map((u) => ({
     value: u.id,
-    label: `Apto ${u.number}`,
-    group: u.tower ? `Torre ${u.tower}` : "Sin torre",
-    display: u.tower ? `Torre ${u.tower} · Apto ${u.number}` : `Apto ${u.number}`,
+    label: unitNumberLabel(u.number),
+    group: groupName(u.tower),
+    display: unitFullLabel(u),
   }));
 }

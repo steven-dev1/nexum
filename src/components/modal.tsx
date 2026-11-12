@@ -79,14 +79,19 @@ type Props = {
   title: string;
   description?: string;
   icon?: ModalIcon;
-  /** Contenido del botón que abre el modal (texto o, p. ej., una miniatura). */
-  trigger: ReactNode;
+  /** Contenido del botón que abre el modal (texto o, p. ej., una miniatura). Sin él, el modal se controla con `open`. */
+  trigger?: ReactNode;
   /** Nombre accesible del botón cuando `trigger` no es texto. */
   triggerLabel?: string;
   /** Muestra un ícono "+" en el botón (acciones de creación). */
   plus?: boolean;
   triggerClassName?: string;
   size?: "md" | "lg";
+  /** Abre el modal al montarse (p. ej. al llegar desde un enlace «Invitar»). */
+  defaultOpen?: boolean;
+  /** Modo controlado: un solo modal compartido por muchas filas (junto con `onOpenChange`). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 };
 
@@ -105,16 +110,30 @@ export function Modal({
   plus = false,
   triggerClassName,
   size = "md",
+  defaultOpen = false,
+  open: controlledOpen,
+  onOpenChange,
   children,
 }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [open, setOpen] = useState(false);
+  const [innerOpen, setInnerOpen] = useState(defaultOpen);
+  const open = controlledOpen ?? innerOpen;
+  const setOpen = useCallback(
+    (value: boolean) => {
+      setInnerOpen(value);
+      onOpenChange?.(value);
+    },
+    [onOpenChange],
+  );
   const [toast, setToast] = useState<string | null>(null);
   const titleId = useId();
   const descriptionId = useId();
 
   useEffect(() => {
-    if (open && !ref.current?.open) ref.current?.showModal();
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    if (!open && dialog.open) dialog.close();
   }, [open]);
 
   useEffect(() => {
@@ -132,27 +151,29 @@ export function Modal({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={triggerLabel}
-        className={triggerClassName ?? btnAccent}
-      >
-        {plus && (
-          <svg
-            className="size-4"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            aria-hidden
-          >
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        )}
-        {trigger}
-      </button>
+      {trigger !== undefined && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label={triggerLabel}
+          className={triggerClassName ?? btnAccent}
+        >
+          {plus && (
+            <svg
+              className="size-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          )}
+          {trigger}
+        </button>
+      )}
 
       <dialog
         ref={ref}

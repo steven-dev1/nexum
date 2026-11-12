@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, isAdmin } from "@/lib/auth";
+import { groupName } from "@/lib/units";
 import type { ActionState } from "@/lib/action-state";
 import { pushInBackground, residentsOfAudience, sendPush } from "@/lib/push";
 
@@ -43,7 +44,7 @@ export async function publishAnnouncement(_prev: ActionState, formData: FormData
 
   pushInBackground(async () =>
     sendPush(supabase, await residentsOfAudience(supabase, parsed.row.tower), {
-      title: parsed.row.audience === "torre" ? `Aviso para la torre ${parsed.row.tower}` : "Nuevo comunicado",
+      title: parsed.row.audience === "torre" ? `Aviso para ${groupName(parsed.row.tower)}` : "Nuevo comunicado",
       body: parsed.row.title,
       url: "/comunicados",
       tag: `comunicado-${created.id}`,

@@ -1,38 +1,31 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
-import { ActionForm } from "@/components/action-form";
 import { Modal } from "@/components/modal";
-import { Card, Empty, btnDanger, inputCls } from "@/components/ui";
-import { deleteUnit } from "./actions";
+import { Card, Empty, inputCls } from "@/components/ui";
+import { groupName, naturalCompare, unitFullLabel, unitNumberLabel } from "@/lib/units";
+import { UnitModalBody } from "./unit-modal";
 
 export type UnitView = {
   id: string;
   tower: string;
   number: string;
+  /** Piso de la unidad, o null si no aplica (casas, locales…). */
+  floor: number | null;
   residents: { id: string; name: string; email: string | null }[];
   pendingPackages: number;
 };
 
 type Occupancy = "all" | "occupied" | "vacant";
 
-const collator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
 const normalize = (s: string) =>
   s
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase();
 
-/** Piso a partir del número: 302 → 3, 1205 → 12. Números cortos o con letras van aparte. */
-function floorOf(number: string): number | null {
-  if (!/^\d+$/.test(number)) return null;
-  const n = Number(number);
-  return n >= 100 ? Math.floor(n / 100) : null;
-}
-
-const towerName = (tower: string) => (tower ? `Torre ${tower}` : "Sin torre");
-const unitName = (u: UnitView) => (u.tower ? `Torre ${u.tower} · Apto ${u.number}` : `Apto ${u.number}`);
+/** Etiqueta del piso: 5 → «5», 0 → «PB», -1 → «S1». */
+const floorLabel = (floor: number) => (floor === 0 ? "PB" : floor < 0 ? `S${-floor}` : String(floor));
 
 const icon = (d: ReactNode, cls = "size-4") => (
   <svg
@@ -63,8 +56,7 @@ export function UnitsBoard({ units }: { units: UnitView[] }) {
   const [occupancy, setOccupancy] = useState<Occupancy>("all");
 
   const towers = useMemo(
-    () =>
-      [...new Set(units.map((u) => u.tower))].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : collator.compare(a, b))),
+    () => [...new Set(units.map((u) => u.tower))].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : naturalCompare(a, b))),
     [units],
   );
 
@@ -88,7 +80,7 @@ export function UnitsBoard({ units }: { units: UnitView[] }) {
       if (occupancy === "vacant" && u.residents.length > 0) return false;
       if (words.length === 0) return true;
       const haystack = normalize(
-        `torre ${u.tower} apto ${u.number} ${u.residents.map((r) => `${r.name} ${r.email ?? ""}`).join(" ")}`,
+        `${groupName(u.tower)} ${unitNumberLabel(u.number)} ${u.floor !== null ? `piso ${u.floor}` : ""} ${u.residents.map((r) => `${r.name} ${r.email ?? ""}`).join(" ")}`,
       );
       return words.every((w) => haystack.includes(w));
     });
@@ -100,15 +92,16 @@ export function UnitsBoard({ units }: { units: UnitView[] }) {
         const list = filtered.filter((u) => u.tower === t);
         // Pisos de arriba hacia abajo, como el edificio; las unidades sin piso al final.
         const floors = new Map<number | null, UnitView[]>();
-        for (const u of [...list].sort((a, b) => collator.compare(a.number, b.number))) {
-          const f = floorOf(u.number);
-          floors.set(f, [...(floors.get(f) ?? []), u]);
+        for (const u of [...list].sort((a, b) => naturalCompare(a.number, b.number))) {
+          floors.set(u.floor, [...(floors.get(u.floor) ?? []), u]);
         }
         const ordered = [...floors.entries()].sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : b - a));
         const all = units.filter((u) => u.tower === t);
         return {
           tower: t,
           floors: ordered,
+          // Sin ningún piso cargado (casas, locales…): una sola cuadrícula, no filas por piso.
+          flat: all.every((u) => u.floor === null),
           count: list.length,
           total: all.length,
           occupied: all.filter((u) => u.residents.length > 0).length,
@@ -177,7 +170,7 @@ export function UnitsBoard({ units }: { units: UnitView[] }) {
                   onClick={() => setTower(t)}
                   className={chip(tower === t)}
                 >
-                  {towerName(t)}
+                  {groupName(t)}
                 </button>
               ))}
             </div>
@@ -225,7 +218,7 @@ export function UnitsBoard({ units }: { units: UnitView[] }) {
                   )}
                 </span>
                 <div>
-                  <h2 className="text-base font-bold text-ink">{towerName(g.tower)}</h2>
+                  <h2 className="text-base font-bold text-ink">{groupName(g.tower)}</h2>
                   <p className="text-xs text-muted">
                     {g.total} unidades · {g.occupied} ocupadas · {g.total - g.occupied} sin residentes
                   </p>
@@ -244,25 +237,39 @@ export function UnitsBoard({ units }: { units: UnitView[] }) {
               </div>
             </div>
 
-            <div className="space-y-2">
-              {g.floors.map(([floor, list]) => (
-                <div key={floor ?? "otros"} className="flex gap-3 rounded-xl bg-bg/60 p-2">
-                  <div className="flex w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-surface-2 py-1 text-center">
-                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
-                      {floor === null ? "Otras" : "Piso"}
-                    </span>
-                    {floor !== null && <span className="text-lg font-bold leading-6 text-ink">{floor}</span>}
+            {g.flat ? (
+              <ul className="flex flex-wrap gap-2 rounded-xl bg-bg/60 p-2">
+                {g.floors
+                  .flatMap(([, list]) => list)
+                  .map((u) => (
+                    <li key={u.id}>
+                      <UnitChip unit={u} />
+                    </li>
+                  ))}
+              </ul>
+            ) : (
+              <div className="space-y-2">
+                {g.floors.map(([floor, list]) => (
+                  <div key={floor ?? "otros"} className="flex gap-3 rounded-xl bg-bg/60 p-2">
+                    <div className="flex w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-surface-2 py-1 text-center">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+                        {floor === null ? "Sin piso" : "Piso"}
+                      </span>
+                      {floor !== null && (
+                        <span className="text-lg font-bold leading-6 text-ink">{floorLabel(floor)}</span>
+                      )}
+                    </div>
+                    <ul className="flex flex-1 flex-wrap gap-2">
+                      {list.map((u) => (
+                        <li key={u.id}>
+                          <UnitChip unit={u} />
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="flex flex-1 flex-wrap gap-2">
-                    {list.map((u) => (
-                      <li key={u.id}>
-                        <UnitChip unit={u} />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </Card>
         ))
       )}
@@ -313,22 +320,22 @@ function UnitChip({ unit: u }: { unit: UnitView }) {
   const occupied = u.residents.length > 0;
   return (
     <Modal
-      title={unitName(u)}
+      title={unitFullLabel(u)}
       description={
         occupied ? `${u.residents.length} residente${u.residents.length === 1 ? "" : "s"}` : "Sin residentes asignados"
       }
       icon="building"
-      triggerLabel={`${unitName(u)}: ${occupied ? `${u.residents.length} residentes` : "sin residentes"}${
+      triggerLabel={`${unitFullLabel(u)}: ${occupied ? `${u.residents.length} residentes` : "sin residentes"}${
         u.pendingPackages ? `, ${u.pendingPackages} paquetes por recoger` : ""
       }`}
-      triggerClassName={`relative flex w-[5.25rem] cursor-pointer flex-col items-start rounded-xl border px-2.5 py-2 text-left transition-colors ${
+      triggerClassName={`relative flex min-w-[5.25rem] max-w-[10rem] cursor-pointer flex-col items-start rounded-xl border px-2.5 py-2 text-left transition-colors ${
         occupied
           ? "border-primary/40 bg-primary-soft text-primary-ink hover:border-primary"
           : "border-dashed border-muted/50 bg-surface text-muted hover:border-primary hover:text-ink"
       }`}
       trigger={
         <>
-          <span className="text-sm font-bold text-ink">{u.number}</span>
+          <span className="max-w-full truncate text-sm font-bold text-ink">{u.number}</span>
           <span className="mt-0.5 flex items-center gap-1 text-[11px] font-medium">
             {occupied ? (
               <>
@@ -347,73 +354,7 @@ function UnitChip({ unit: u }: { unit: UnitView }) {
         </>
       }
     >
-      {/* Solo se ofrece eliminar si no hay residentes ni paquetes pendientes (la BD lo impediría). */}
-      {occupied || u.pendingPackages > 0 ? (
-        <div className="space-y-4 border-t border-line px-6 py-5">
-          <UnitDetail unit={u} />
-        </div>
-      ) : (
-        <ActionForm
-          action={deleteUnit}
-          submitLabel="Eliminar unidad"
-          pendingLabel="Eliminando…"
-          buttonClassName={btnDanger}
-        >
-          <input type="hidden" name="id" value={u.id} />
-          <UnitDetail unit={u} />
-        </ActionForm>
-      )}
+      <UnitModalBody unit={u} />
     </Modal>
-  );
-}
-
-function UnitDetail({ unit: u }: { unit: UnitView }) {
-  return (
-    <>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-surface-2 p-3">
-          <p className="text-xs text-muted">Residentes</p>
-          <p className="text-2xl font-bold text-ink">{u.residents.length}</p>
-        </div>
-        <div className="rounded-xl bg-surface-2 p-3">
-          <p className="text-xs text-muted">Paquetes por recoger</p>
-          <p className="text-2xl font-bold text-ink">{u.pendingPackages}</p>
-        </div>
-      </div>
-
-      {u.residents.length > 0 ? (
-        <ul className="divide-y divide-line rounded-xl border border-line">
-          {u.residents.map((r) => (
-            <li key={r.id} className="flex items-center gap-3 px-3 py-2.5">
-              <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-soft text-sm font-bold text-primary-ink">
-                {(r.name || r.email || "?").charAt(0).toUpperCase()}
-              </span>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-ink">{r.name || "Sin nombre"}</p>
-                <p className="truncate text-xs text-muted">{r.email ?? "—"}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="rounded-xl border border-dashed border-line px-4 py-3 text-sm text-muted">
-          Nadie vive aquí todavía según el sistema. Asigna residentes desde{" "}
-          <Link href="/admin/usuarios" className="font-semibold text-primary-ink underline-offset-2 hover:underline">
-            Usuarios
-          </Link>
-          . Si la unidad no existe y no tiene paquetes pendientes, puedes eliminarla.
-        </p>
-      )}
-
-      {u.pendingPackages > 0 && (
-        <Link
-          href="/paqueteria"
-          className="flex items-center justify-between rounded-xl bg-accent-soft px-3 py-2.5 text-sm font-semibold text-ink hover:brightness-95"
-        >
-          Ver paquetes en portería
-          <span aria-hidden>→</span>
-        </Link>
-      )}
-    </>
   );
 }

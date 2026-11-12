@@ -141,21 +141,110 @@ export interface Database {
       };
       units: {
         Row: {
+          floor: number | null;
           id: string;
           number: string;
           tower: string;
         };
         Insert: {
+          floor?: number | null;
           id?: string;
           number: string;
           tower?: string;
         };
         Update: {
+          floor?: number | null;
           id?: string;
           number?: string;
           tower?: string;
         };
         Relationships: [];
+      };
+      invitations: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          expires_at: string;
+          id: string;
+          label: string | null;
+          max_uses: number;
+          revoked_at: string | null;
+          role: string;
+          token_hash: string;
+          unit_id: string | null;
+          uses: number;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          expires_at: string;
+          id?: string;
+          label?: string | null;
+          max_uses?: number;
+          revoked_at?: string | null;
+          role?: string;
+          token_hash: string;
+          unit_id?: string | null;
+          uses?: number;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          expires_at?: string;
+          id?: string;
+          label?: string | null;
+          max_uses?: number;
+          revoked_at?: string | null;
+          role?: string;
+          token_hash?: string;
+          unit_id?: string | null;
+          uses?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invitations_unit_id_fkey";
+            columns: ["unit_id"];
+            isOneToOne: false;
+            referencedRelation: "units";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      invitation_redemptions: {
+        Row: {
+          id: string;
+          invitation_id: string;
+          redeemed_at: string;
+          user_id: string;
+        };
+        Insert: {
+          id?: string;
+          invitation_id: string;
+          redeemed_at?: string;
+          user_id: string;
+        };
+        Update: {
+          id?: string;
+          invitation_id?: string;
+          redeemed_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invitation_redemptions_invitation_id_fkey";
+            columns: ["invitation_id"];
+            isOneToOne: false;
+            referencedRelation: "invitations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invitation_redemptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       packages: {
         Row: {
@@ -367,7 +456,19 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      invitation_info: {
+        Args: { p_token: string };
+        Returns: {
+          expires_at: string | null;
+          reason: string;
+          role: string | null;
+          unit_label: string | null;
+          valid: boolean;
+        }[];
+      };
+      redeem_invitation: { Args: { p_token: string }; Returns: string };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

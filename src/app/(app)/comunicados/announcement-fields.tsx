@@ -1,5 +1,6 @@
 import { Select } from "@/components/select";
 import { Field, inputCls } from "@/components/ui";
+import { groupName } from "@/lib/units";
 
 export type AnnouncementDefaults = {
   title?: string;
@@ -35,7 +36,7 @@ export function AnnouncementFields({ towers, defaults = {} }: { towers: string[]
           { value: "todos", label: "Todo el conjunto", hint: "Lo ven todos los residentes" },
           ...towers.map((t) => ({
             value: `torre:${t}`,
-            label: `Solo torre ${t}`,
+            label: `Solo ${groupName(t)}`,
             hint: "Lo ven únicamente los residentes de esa torre",
             group: "Por torre",
           })),

@@ -6,6 +6,8 @@ import type { Database } from "./database.types";
 // para instalar la PWA (manifest, íconos, service worker y página sin conexión).
 const PUBLIC_PATHS = [
   "/login",
+  // Enlaces de invitación: quien llega aún no tiene cuenta.
+  "/invitacion",
   "/manifest.webmanifest",
   "/pwa-icon",
   "/apple-icon",
@@ -51,7 +53,9 @@ export async function updateSession(request: NextRequest) {
 
   // getClaims valida el JWT; no usar getSession() en el servidor.
   const { data } = await supabase.auth.getClaims();
-  const isPublic = PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
+  // Coincide la ruta exacta o una subruta (/login, /login/x), no cualquier texto que empiece igual (/login-x).
+  const pathname = request.nextUrl.pathname;
+  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   // Las Server Actions (POST con cabecera `next-action`) esperan una respuesta de
   // acción, no HTML: redirigirlas desde aquí rompe el cliente ("unexpected response").
