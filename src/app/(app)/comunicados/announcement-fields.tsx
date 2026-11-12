@@ -1,10 +1,14 @@
+import { RichEditor } from "@/components/rich-editor";
 import { Select } from "@/components/select";
 import { Field, inputCls } from "@/components/ui";
+import type { RichNode } from "@/lib/rich-text";
 import { groupName } from "@/lib/units";
 
 export type AnnouncementDefaults = {
   title?: string;
-  body?: string;
+  /** Documento con formato (o el texto plano de un comunicado antiguo, ya convertido). */
+  doc?: RichNode | null;
+  imageUrls?: Record<string, string>;
   /** "todos" o "torre:<torre>" */
   target?: string;
   pinned?: boolean;
@@ -24,9 +28,7 @@ export function AnnouncementFields({ towers, defaults = {} }: { towers: string[]
           autoFocus
         />
       </Field>
-      <Field label="Mensaje">
-        <textarea name="body" rows={7} required defaultValue={defaults.body} className={inputCls} />
-      </Field>
+      <RichEditor name="content" initialDoc={defaults.doc} imageUrls={defaults.imageUrls} />
       <Select
         label="Dirigido a"
         name="target"

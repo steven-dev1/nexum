@@ -4,6 +4,8 @@ import { ActionForm } from "@/components/action-form";
 import { Modal } from "@/components/modal";
 import { Badge, Card, ContentSkeleton, Empty, PageHeader, btnDanger, btnGhost, btnSm } from "@/components/ui";
 import { getProfile, isAdmin, unitLabel } from "@/lib/auth";
+import { RichText } from "@/components/rich-text";
+import { docFromPlain, imagePathsOf, IMAGE_BUCKET, type RichNode } from "@/lib/rich-text";
 import { fmtDateTime } from "@/lib/format";
 import { groupName } from "@/lib/units";
 import { createClient } from "@/lib/supabase/server";
@@ -16,6 +18,8 @@ type Announcement = {
   id: string;
   title: string;
   body: string;
+  content: RichNode | null;
+  edited_at: string | null;
   audience: "todos" | "torre";
   tower: string | null;
   pinned: boolean;
@@ -128,7 +132,7 @@ async function ComunicadosContent() {
   const [listRes, readsRes, unitsRes] = await Promise.all([
     supabase
       .from("announcements")
-      .select("id, title, body, audience, tower, pinned, published_at")
+      .select("id, title, body, content, edited_at, audience, tower, pinned, published_at")
       .order("pinned", { ascending: false })
       .order("published_at", { ascending: false })
       .limit(30),
@@ -137,7 +141,15 @@ async function ComunicadosContent() {
   ]);
   const towers = towersOf(unitsRes.data);
 
-  const items = (listRes.data ?? []) as Announcement[];
+  const items = (listRes.data ?? []) as unknown as Announcement[];
+
+  // URLs firmadas (1 h) de las imágenes de los comunicados visibles.
+  const imageUrls: Record<string, string> = {};
+  const paths = [...new Set(items.flatMap((i) => imagePathsOf(i.content)))];
+  if (paths.length) {
+    const { data: signed } = await supabase.storage.from(IMAGE_BUCKET).createSignedUrls(paths, 3600);
+    for (const s of signed ?? []) if (s.path && s.signedUrl) imageUrls[s.path] = s.signedUrl;
+  }
   const read = new Set((readsRes.data ?? []).map((r) => r.announcement_id as string));
 
   // Solo administración: quién leyó cada comunicado (entre los residentes a quienes va dirigido).
@@ -182,7 +194,7 @@ async function ComunicadosContent() {
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <h2 className="text-lg font-semibold text-ink">{a.title}</h2>
                     <div className="flex flex-wrap items-center gap-1.5">
-                      {admin && <EditAnnouncement announcement={a} towers={towers} />}
+                      {admin && <EditAnnouncement announcement={a} towers={towers} imageUrls={imageUrls} />}
                       {admin && <DeleteAnnouncement announcement={a} />}
                       {a.pinned && <Badge tone="accent">Fijado</Badge>}
                       <Badge tone={a.audience === "torre" ? "primary" : "neutral"}>
@@ -190,8 +202,17 @@ async function ComunicadosContent() {
                       </Badge>
                     </div>
                   </div>
-                  <p className="mt-0.5 text-xs text-muted">{fmtDateTime(a.published_at)}</p>
-                  <p className="mt-3 whitespace-pre-line text-sm leading-6 text-ink">{a.body}</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {fmtDateTime(a.published_at)}
+                    {a.edited_at && <span title={fmtDateTime(a.edited_at)}> · Editado</span>}
+                  </p>
+                  <div className="mt-3">
+                    {a.content ? (
+                      <RichText doc={a.content} urls={imageUrls} />
+                    ) : (
+                      <p className="whitespace-pre-line text-sm leading-6 text-ink">{a.body}</p>
+                    )}
+                  </div>
                   {admin && (
                     <ReadReceipts announcement={a} residents={residents} reads={readsByAnnouncement.get(a.id)} />
                   )}
@@ -220,7 +241,15 @@ async function ComunicadosContent() {
 }
 
 /** Botón + modal para editar un comunicado (solo administración). */
-function EditAnnouncement({ announcement: a, towers }: { announcement: Announcement; towers: string[] }) {
+function EditAnnouncement({
+  announcement: a,
+  towers,
+  imageUrls,
+}: {
+  announcement: Announcement;
+  towers: string[];
+  imageUrls: Record<string, string>;
+}) {
   return (
     <Modal
       title="Editar comunicado"
@@ -236,7 +265,8 @@ function EditAnnouncement({ announcement: a, towers }: { announcement: Announcem
           towers={towers}
           defaults={{
             title: a.title,
-            body: a.body,
+            doc: a.content ?? docFromPlain(a.body),
+            imageUrls,
             target: a.audience === "torre" ? `torre:${a.tower}` : "todos",
             pinned: a.pinned,
           }}

@@ -40,6 +40,8 @@ export interface Database {
           audience: string;
           author_id: string | null;
           body: string;
+          content: Json | null;
+          edited_at: string | null;
           id: string;
           pinned: boolean;
           published_at: string;
@@ -50,6 +52,8 @@ export interface Database {
           audience?: string;
           author_id?: string | null;
           body: string;
+          content?: Json | null;
+          edited_at?: string | null;
           id?: string;
           pinned?: boolean;
           published_at?: string;
@@ -60,6 +64,8 @@ export interface Database {
           audience?: string | null;
           author_id?: string | null;
           body?: string;
+          content?: Json | null;
+          edited_at?: string | null;
           id?: string;
           pinned?: boolean;
           published_at?: string;

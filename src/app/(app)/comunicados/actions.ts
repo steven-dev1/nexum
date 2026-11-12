@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getProfile, isAdmin } from "@/lib/auth";
 import { groupName } from "@/lib/units";
+import type { Json } from "@/lib/supabase/database.types";
 import type { ActionState } from "@/lib/action-state";
+import { IMAGE_BUCKET, imagePathsOf, sanitizeDoc } from "@/lib/rich-text";
 import { pushInBackground, residentsOfAudience, sendPush } from "@/lib/push";
 
 const text = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
@@ -12,18 +14,19 @@ const text = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
 /** Lee y valida los campos comunes de publicar/editar. */
 function readAnnouncement(formData: FormData) {
   const title = text(formData, "title");
-  const body = text(formData, "body");
+  const rich = sanitizeDoc(text(formData, "content"));
   // `target` es "todos" o "torre:<torre>" (un solo desplegable en el formulario).
   const target = text(formData, "target");
   const audience = target.startsWith("torre:") ? "torre" : "todos";
   const tower = audience === "torre" ? target.slice("torre:".length) : "";
-  if (!title || !body) return { error: "Escribe un título y el mensaje." } as const;
+  if (!title || !rich || !rich.plain) return { error: "Escribe un título y el mensaje." } as const;
   if (audience === "torre" && !tower) return { error: "Selecciona la torre destinataria." } as const;
 
   return {
     row: {
       title,
-      body,
+      body: rich.plain,
+      content: rich.doc as unknown as Json,
       audience,
       tower: audience === "torre" ? tower : null,
       pinned: formData.get("pinned") === "on",
@@ -45,7 +48,7 @@ export async function publishAnnouncement(_prev: ActionState, formData: FormData
   pushInBackground(async () =>
     sendPush(supabase, await residentsOfAudience(supabase, parsed.row.tower), {
       title: parsed.row.audience === "torre" ? `Aviso para ${groupName(parsed.row.tower)}` : "Nuevo comunicado",
-      body: parsed.row.title,
+      body: `${parsed.row.title} — ${parsed.row.body.replace(/s+/g, " ").slice(0, 100)}`,
       url: "/comunicados",
       tag: `comunicado-${created.id}`,
     }),
@@ -67,8 +70,18 @@ export async function updateAnnouncement(_prev: ActionState, formData: FormData)
   if ("error" in parsed) return { error: parsed.error };
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from("announcements").update(parsed.row).eq("id", id).select("id");
+  const { data: before } = await supabase.from("announcements").select("content").eq("id", id).maybeSingle();
+  const { data, error } = await supabase
+    .from("announcements")
+    .update({ ...parsed.row, edited_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("id");
   if (error || !data || data.length === 0) return { error: "No se pudo guardar el comunicado." };
+
+  // Borra del almacenamiento las imágenes que se quitaron del texto.
+  const kept = new Set(imagePathsOf(parsed.row.content));
+  const removed = imagePathsOf(before?.content).filter((p) => !kept.has(p));
+  if (removed.length) await supabase.storage.from(IMAGE_BUCKET).remove(removed);
 
   revalidatePath("/comunicados");
   revalidatePath("/");
@@ -83,8 +96,12 @@ export async function deleteAnnouncement(_prev: ActionState, formData: FormData)
   if (!id) return { error: "Comunicado inválido." };
 
   const supabase = await createClient();
+  const { data: before } = await supabase.from("announcements").select("content").eq("id", id).maybeSingle();
   const { error } = await supabase.from("announcements").delete().eq("id", id);
   if (error) return { error: "No se pudo eliminar el comunicado." };
+
+  const paths = imagePathsOf(before?.content);
+  if (paths.length) await supabase.storage.from(IMAGE_BUCKET).remove(paths);
 
   revalidatePath("/comunicados");
   revalidatePath("/");
