@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ActionForm } from "@/components/action-form";
 import { Modal } from "@/components/modal";
-import { Badge, Card, ContentSkeleton, Empty, PageHeader, btnGhost, btnSm } from "@/components/ui";
+import { Badge, Card, ContentSkeleton, Empty, PageHeader, btnDanger, btnGhost, btnSm } from "@/components/ui";
 import { getProfile, isAdmin, unitLabel } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import { markAsRead, publishAnnouncement, updateAnnouncement } from "./actions";
+import { deleteAnnouncement, markAsRead, publishAnnouncement, updateAnnouncement } from "./actions";
 import { AnnouncementFields, towersOf } from "./announcement-fields";
 
 export const metadata: Metadata = { title: "Comunicados" };
@@ -182,6 +182,7 @@ async function ComunicadosContent() {
                     <h2 className="text-lg font-semibold text-ink">{a.title}</h2>
                     <div className="flex flex-wrap items-center gap-1.5">
                       {admin && <EditAnnouncement announcement={a} towers={towers} />}
+                      {admin && <DeleteAnnouncement announcement={a} />}
                       {a.pinned && <Badge tone="accent">Fijado</Badge>}
                       <Badge tone={a.audience === "torre" ? "primary" : "neutral"}>
                         {a.audience === "torre" ? `Torre ${a.tower}` : "Todo el conjunto"}
@@ -239,6 +240,31 @@ function EditAnnouncement({ announcement: a, towers }: { announcement: Announcem
             pinned: a.pinned,
           }}
         />
+      </ActionForm>
+    </Modal>
+  );
+}
+
+/** Botón + modal para eliminar un comunicado (solo administración). */
+function DeleteAnnouncement({ announcement: a }: { announcement: Announcement }) {
+  return (
+    <Modal
+      title="Eliminar comunicado"
+      description={`«${a.title}»`}
+      trigger="Eliminar"
+      triggerClassName={`${btnGhost} ${btnSm}`}
+    >
+      <ActionForm
+        action={deleteAnnouncement}
+        submitLabel="Eliminar"
+        pendingLabel="Eliminando…"
+        buttonClassName={btnDanger}
+      >
+        <input type="hidden" name="id" value={a.id} />
+        <p className="text-sm text-muted">
+          Se borra para todos los destinatarios y se pierde el registro de quién lo leyó. Esta acción no se puede
+          deshacer.
+        </p>
       </ActionForm>
     </Modal>
   );

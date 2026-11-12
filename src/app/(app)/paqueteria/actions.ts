@@ -74,7 +74,7 @@ export async function deliverPackage(formData: FormData) {
   if (!id) return;
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("packages")
     .update({
       status: "entregado",
@@ -82,9 +82,85 @@ export async function deliverPackage(formData: FormData) {
       delivered_to: text(formData, "delivered_to"),
     })
     .eq("id", id)
-    .eq("status", "recibido");
+    .eq("status", "recibido")
+    .select("id, unit_id")
+    .maybeSingle();
   if (error) throw new Error("No se pudo marcar como entregado");
+  if (!data) return;
+
+  pushInBackground(async () =>
+    sendPush(supabase, await residentsOfUnit(supabase, data.unit_id), {
+      title: "Paquete entregado",
+      body: "Tu paquete ya fue recogido en portería.",
+      url: "/paqueteria",
+      tag: `paquete-${data.id}`,
+    }),
+  );
 
   revalidatePath("/paqueteria");
   revalidatePath("/");
+}
+
+export async function updatePackage(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const profile = await getProfile();
+  if (!isStaff(profile)) return { error: "Solo portería o administración edita paquetes." };
+
+  const id = text(formData, "id");
+  const unitId = text(formData, "unit_id");
+  if (!id) return { error: "Paquete inválido." };
+  if (!unitId) return { error: "Selecciona la unidad destinataria." };
+
+  const supabase = await createClient();
+  const { data: before } = await supabase
+    .from("packages")
+    .select("unit_id, status")
+    .eq("id", id)
+    .maybeSingle();
+  if (!before) return { error: "No se encontró el paquete." };
+
+  const { error } = await supabase
+    .from("packages")
+    .update({
+      unit_id: unitId,
+      recipient_name: text(formData, "recipient_name"),
+      carrier: text(formData, "carrier"),
+      description: text(formData, "description"),
+    })
+    .eq("id", id);
+  if (error) return { error: "No se pudo guardar el paquete." };
+
+  // Si cambió de unidad y sigue en portería, avisan también al residente nuevo.
+  if (before.unit_id !== unitId && before.status === "recibido") {
+    pushInBackground(async () =>
+      sendPush(supabase, await residentsOfUnit(supabase, unitId), {
+        title: "Te llegó un paquete",
+        body: "Hay un paquete esperándote en portería.",
+        url: "/paqueteria",
+        tag: `paquete-${id}`,
+      }),
+    );
+  }
+
+  revalidatePath("/paqueteria");
+  revalidatePath("/");
+  return { ok: "Paquete actualizado." };
+}
+
+export async function deletePackage(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const profile = await getProfile();
+  if (!isStaff(profile)) return { error: "Solo portería o administración elimina paquetes." };
+
+  const id = text(formData, "id");
+  if (!id) return { error: "Paquete inválido." };
+
+  const supabase = await createClient();
+  const { data: pkg } = await supabase.from("packages").select("photo_path").eq("id", id).maybeSingle();
+  const { error } = await supabase.from("packages").delete().eq("id", id);
+  if (error) return { error: "No se pudo eliminar el paquete." };
+
+  if (pkg?.photo_path) await supabase.storage.from(PHOTO_BUCKET).remove([pkg.photo_path]);
+
+  revalidatePath("/paqueteria");
+  revalidatePath("/");
+  return { ok: "Paquete eliminado." };
 }

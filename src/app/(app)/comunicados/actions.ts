@@ -74,6 +74,22 @@ export async function updateAnnouncement(_prev: ActionState, formData: FormData)
   return { ok: "Comunicado actualizado." };
 }
 
+export async function deleteAnnouncement(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const profile = await getProfile();
+  if (!isAdmin(profile)) return { error: "Solo la administración elimina comunicados." };
+
+  const id = text(formData, "id");
+  if (!id) return { error: "Comunicado inválido." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("announcements").delete().eq("id", id);
+  if (error) return { error: "No se pudo eliminar el comunicado." };
+
+  revalidatePath("/comunicados");
+  revalidatePath("/");
+  return { ok: "Comunicado eliminado." };
+}
+
 export async function markAsRead(formData: FormData) {
   const profile = await getProfile();
   const id = text(formData, "id");

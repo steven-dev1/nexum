@@ -13,6 +13,8 @@ import {
   Field,
   PageHeader,
   SectionTitle,
+  btnDanger,
+  btnGhost,
   btnPrimary,
   btnSm,
   inputCls,
@@ -21,13 +23,16 @@ import { getProfile, isStaff, unitLabel } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { PhotoCapture } from "@/components/photo-capture";
-import { deliverPackage, registerPackage } from "./actions";
+import { deletePackage, deliverPackage, registerPackage, updatePackage } from "./actions";
 import { PhotoThumb } from "./photo-thumb";
 
 export const metadata: Metadata = { title: "Paquetería" };
 
+type Unit = { id: string; tower: string; number: string };
+
 type Pkg = {
   id: string;
+  unit_id: string;
   recipient_name: string | null;
   carrier: string | null;
   description: string | null;
@@ -115,9 +120,9 @@ async function PaqueteriaContent() {
   const supabase = await createClient();
 
   const select =
-    "id, recipient_name, carrier, description, status, received_at, delivered_at, delivered_to, photo_path, units(tower, number)";
+    "id, unit_id, recipient_name, carrier, description, status, received_at, delivered_at, delivered_to, photo_path, units(tower, number)";
 
-  const [pendingRes, historyRes] = await Promise.all([
+  const [pendingRes, historyRes, unitsRes] = await Promise.all([
     supabase.from("packages").select(select).eq("status", "recibido").order("received_at", { ascending: false }),
     supabase
       .from("packages")
@@ -125,10 +130,14 @@ async function PaqueteriaContent() {
       .neq("status", "recibido")
       .order("received_at", { ascending: false })
       .limit(20),
+    staff
+      ? supabase.from("units").select("id, tower, number").order("tower").order("number")
+      : Promise.resolve({ data: [] as Unit[] }),
   ]);
 
   const pending = (pendingRes.data ?? []) as unknown as Pkg[];
   const history = (historyRes.data ?? []) as unknown as Pkg[];
+  const units = (unitsRes.data ?? []) as Unit[];
 
   // URLs firmadas (1 h) para las fotos; el bucket es privado y la RLS decide quién las ve.
   const paths = [...pending, ...history].map((p) => p.photo_path).filter((p): p is string => !!p);
@@ -169,18 +178,22 @@ async function PaqueteriaContent() {
                   </div>
                 </div>
                 {staff && (
-                  <form action={deliverPackage} className="flex gap-2">
-                    <input type="hidden" name="id" value={p.id} />
-                    <input
-                      name="delivered_to"
-                      placeholder="Quién recibe"
-                      aria-label="Quién recibe"
-                      className={`${inputCls} sm:w-40`}
-                    />
-                    <button type="submit" className={`${btnPrimary} ${btnSm} shrink-0`}>
-                      Entregar
-                    </button>
-                  </form>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <form action={deliverPackage} className="flex gap-2">
+                      <input type="hidden" name="id" value={p.id} />
+                      <input
+                        name="delivered_to"
+                        placeholder="Quién recibe"
+                        aria-label="Quién recibe"
+                        className={`${inputCls} sm:w-40`}
+                      />
+                      <button type="submit" className={`${btnPrimary} ${btnSm} shrink-0`}>
+                        Entregar
+                      </button>
+                    </form>
+                    <EditPackage pkg={p} units={units} />
+                    <DeletePackage pkg={p} />
+                  </div>
                 )}
               </li>
             ))}
@@ -211,14 +224,92 @@ async function PaqueteriaContent() {
                     </p>
                   </div>
                 </div>
-                <Badge tone={p.status === "entregado" ? "success" : "neutral"}>
-                  {p.status === "entregado" ? "Entregado" : "Devuelto"}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge tone={p.status === "entregado" ? "success" : "neutral"}>
+                    {p.status === "entregado" ? "Entregado" : "Devuelto"}
+                  </Badge>
+                  {staff && <DeletePackage pkg={p} />}
+                </div>
               </li>
             ))}
           </ul>
         )}
       </Card>
     </div>
+  );
+}
+
+/** Botón + modal de edición (solo portería y administración). */
+function EditPackage({ pkg, units }: { pkg: Pkg; units: Unit[] }) {
+  return (
+    <Modal
+      title="Editar paquete"
+      description={`${pkg.carrier ?? "Paquete"} · ${unitLabel(pkg.units)}`}
+      icon="edit"
+      trigger="Editar"
+      triggerClassName={`${btnGhost} ${btnSm}`}
+    >
+      <ActionForm action={updatePackage} submitLabel="Guardar cambios" pendingLabel="Guardando…">
+        <input type="hidden" name="id" value={pkg.id} />
+        <Select
+          label="Unidad destinataria"
+          name="unit_id"
+          required
+          placeholder="Selecciona la unidad…"
+          options={unitOptions(units)}
+          defaultValue={pkg.unit_id}
+        />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Empresa / mensajero">
+            <input
+              name="carrier"
+              defaultValue={pkg.carrier ?? ""}
+              placeholder="Servientrega, Rappi…"
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Destinatario (opcional)">
+            <input
+              name="recipient_name"
+              defaultValue={pkg.recipient_name ?? ""}
+              placeholder="Nombre en la guía"
+              className={inputCls}
+            />
+          </Field>
+        </div>
+        <Field label="Descripción">
+          <input
+            name="description"
+            defaultValue={pkg.description ?? ""}
+            placeholder="Caja mediana, sobre, nevera de icopor…"
+            className={inputCls}
+          />
+        </Field>
+      </ActionForm>
+    </Modal>
+  );
+}
+
+/** Confirmación de borrado (solo portería y administración). */
+function DeletePackage({ pkg }: { pkg: Pkg }) {
+  return (
+    <Modal
+      title="Eliminar paquete"
+      description={`${pkg.carrier ?? "Paquete"} · ${unitLabel(pkg.units)}`}
+      trigger="Eliminar"
+      triggerClassName={`${btnGhost} ${btnSm}`}
+    >
+      <ActionForm
+        action={deletePackage}
+        submitLabel="Eliminar paquete"
+        pendingLabel="Eliminando…"
+        buttonClassName={btnDanger}
+      >
+        <input type="hidden" name="id" value={pkg.id} />
+        <p className="text-sm text-muted">
+          Se borra el registro{pkg.photo_path ? " y su foto" : ""}. Esta acción no se puede deshacer.
+        </p>
+      </ActionForm>
+    </Modal>
   );
 }
