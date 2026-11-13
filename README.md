@@ -129,6 +129,17 @@ horario, máx. 72 h).
 - El **documento** del visitante se guarda aparte (`visit_private`), solo lo ve el personal y debe borrarse a los 90 días
   (Ley 1581 de 2012). Para escanear el QR se necesita permiso de cámara y HTTPS.
 
+## Rendimiento
+
+- **Región**: cada pantalla hace varias consultas a Supabase. Si la función de Vercel y el proyecto de Supabase están en
+  regiones lejanas (p. ej. Vercel en Washington y Supabase en São Paulo), cada consulta suma 100–200 ms. Revisa la región del
+  proyecto en *Supabase → Settings → General* y pon la misma (o la más cercana) en *Vercel → Settings → Functions →
+  Function Region*. Es la mejora más grande y no requiere código.
+- **Navegación**: caché del navegador de 3 min, actualización en segundo plano a los 5 s y tiempo real (ver arriba).
+- **Primera visita a cada sección**: sigue mostrando el esqueleto mientras llegan los datos. Guardarlos con
+  `'use cache: private'` (por usuario, con `cacheLife` y etiquetas que las acciones invalidan) permitiría adelantarlos, pero
+  cambia cómo se leen los datos en cada página; conviene hacerlo por etapas y midiendo en producción.
+
 ## Centro de ayuda
 
 El botón **Ayuda** (menú lateral y «Más» en el celular) abre un formulario para **pedir ayuda, reportar un problema o enviar
