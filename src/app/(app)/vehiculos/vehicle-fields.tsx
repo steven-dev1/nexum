@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PhotoCapture } from "@/components/photo-capture";
 import { Select, type SelectOption } from "@/components/select";
 import { Field, inputCls } from "@/components/ui";
 import { normalizePlate } from "@/lib/plate";
@@ -12,6 +13,8 @@ export type VehicleDefaults = {
   color?: string;
   active?: boolean;
   unitId?: string;
+  /** URL firmada de la foto actual (solo al editar). */
+  photoUrl?: string;
 };
 
 /** Campos de un vehículo (registrar o editar). La placa se normaliza mientras se escribe. */
@@ -65,6 +68,17 @@ export function VehicleFields({
           <input name="color" maxLength={40} defaultValue={defaults.color} placeholder="Gris" className={inputCls} />
         </Field>
       </div>
+      {defaults.photoUrl && (
+        <div className="flex items-center gap-3 rounded-2xl border border-line bg-bg p-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element -- URL firmada y temporal de Supabase Storage */}
+          <img src={defaults.photoUrl} alt="Foto actual del vehículo" className="size-20 rounded-xl object-cover" />
+          <label className="flex items-center gap-2 text-sm text-ink">
+            <input type="checkbox" name="remove_photo" className="size-4 accent-[var(--primary)]" />
+            Quitar la foto actual
+          </label>
+        </div>
+      )}
+      <PhotoCapture name="photo" label={defaults.photoUrl ? "Reemplazar la foto (opcional)" : "Foto del vehículo (opcional)"} />
       {editing && (
         <label className="flex items-center gap-2 text-sm text-ink">
           <input

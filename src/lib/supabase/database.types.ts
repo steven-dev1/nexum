@@ -217,6 +217,7 @@ export interface Database {
           created_by: string | null;
           id: string;
           kind: string;
+          photo_path: string | null;
           plate: string;
           unit_id: string;
         };
@@ -228,6 +229,7 @@ export interface Database {
           created_by?: string | null;
           id?: string;
           kind?: string;
+          photo_path?: string | null;
           plate: string;
           unit_id: string;
         };
@@ -239,6 +241,7 @@ export interface Database {
           created_by?: string | null;
           id?: string;
           kind?: string;
+          photo_path?: string | null;
           plate?: string;
           unit_id?: string;
         };

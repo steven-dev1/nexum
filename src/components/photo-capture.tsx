@@ -147,7 +147,7 @@ export function PhotoCapture({ name, label = "Foto" }: { name: string; label?: s
       ) : preview ? (
         <div className="flex items-center gap-3 rounded-2xl border border-line bg-bg p-2.5">
           {/* eslint-disable-next-line @next/next/no-img-element -- vista previa local (blob:) */}
-          <img src={preview} alt="Foto del paquete" className="size-20 rounded-xl object-cover" />
+          <img src={preview} alt="Foto seleccionada" className="size-20 rounded-xl object-cover" />
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-success">
               {icon(<path d="m5 12 5 5L20 7" />)}

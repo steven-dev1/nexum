@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useSpeechRecognition } from "@/components/use-speech-recognition";
 import { btnGhost, btnPrimary, btnSm, inputCls } from "@/components/ui";
 import { normalizePlate, parseSpokenCommand, spellPlate, type Direction } from "@/lib/plate";
@@ -26,7 +26,8 @@ function spokenText(r: AccessResult) {
   }
 }
 
-function speak(text: string) {
+function speak(text: string, enabled: boolean) {
+  if (!enabled) return;
   try {
     if (!("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
@@ -66,6 +67,18 @@ export function VoiceConsole() {
   const [undone, setUndone] = useState(false);
   const [pending, startTransition] = useTransition();
   const modeRef = useRef(mode);
+  // La respuesta hablada viene apagada en celulares/tabletas: ahí la voz de respuesta puede bloquear el micrófono.
+  const touch = useSyncExternalStore(
+    () => () => {},
+    () => window.matchMedia("(pointer: coarse)").matches,
+    () => false,
+  );
+  const [voiceReplyChoice, setVoiceReplyChoice] = useState<boolean | null>(null);
+  const voiceReply = voiceReplyChoice ?? !touch;
+  const voiceReplyRef = useRef(voiceReply);
+  useEffect(() => {
+    voiceReplyRef.current = voiceReply;
+  }, [voiceReply]);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -76,7 +89,7 @@ export function VoiceConsole() {
       const r = await submitPlate({ plate, direction, method, transcript, force });
       setUndone(false);
       setResult({ ...r, method, transcript });
-      speak(spokenText(r));
+      speak(spokenText(r), voiceReplyRef.current);
     });
   }, []);
 
@@ -86,7 +99,7 @@ export function VoiceConsole() {
       const parsed = parseSpokenCommand(alternatives);
       if (parsed.plates.length === 0) {
         setResult(null);
-        speak("No entendí la placa. Repite, por favor.");
+        speak("No entendí la placa. Repite, por favor.", voiceReplyRef.current);
         return;
       }
       run(parsed.plates[0], parsed.direction ?? modeRef.current, "voz", alternatives[0]);
@@ -94,7 +107,7 @@ export function VoiceConsole() {
     [run],
   );
 
-  const { supported, listening, interim, error, phase, start, stop } = useSpeechRecognition({ onResult: onSpoken });
+  const { supported, listening, interim, error, phase, trail, start, stop } = useSpeechRecognition({ onResult: onSpoken });
 
   // Barra espaciadora = hablar (si no se está escribiendo en un campo).
   useEffect(() => {
@@ -196,6 +209,20 @@ export function VoiceConsole() {
             Registrar {mode === "ingreso" ? "ingreso" : "salida"}
           </button>
         </form>
+        <label className="mt-4 flex items-center gap-2 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={voiceReply}
+            onChange={(e) => setVoiceReplyChoice(e.target.checked)}
+            className="size-4 accent-[var(--primary)]"
+          />
+          Respuesta hablada (el sistema dice el resultado en voz alta)
+        </label>
+        {trail.length > 0 && (
+          <p className="mt-2 text-[11px] leading-4 text-muted" aria-label="Diagnóstico del micrófono">
+            Micrófono: {trail.join(" › ")}
+          </p>
+        )}
         <p className="mt-3 text-xs text-muted">
           La voz la procesa el navegador (en Chrome, los servidores de Google). Cada movimiento queda registrado.
         </p>
@@ -209,6 +236,15 @@ export function VoiceConsole() {
           </p>
           <p className="mt-1 text-2xl font-bold text-ink">{heading[result.status]}</p>
           <p className="mt-1 font-mono text-3xl font-bold tracking-widest text-ink">{result.plate}</p>
+
+          {result.photoUrl && (
+            // eslint-disable-next-line @next/next/no-img-element -- URL firmada y temporal de Supabase Storage
+            <img
+              src={result.photoUrl}
+              alt={`Foto del vehículo ${result.plate}`}
+              className="mt-3 max-h-52 w-full rounded-xl border border-line bg-surface-2 object-cover sm:w-auto sm:max-w-sm"
+            />
+          )}
 
           {result.unit && (
             <p className="mt-2 text-base font-semibold text-ink">

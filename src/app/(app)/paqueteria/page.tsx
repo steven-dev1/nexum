@@ -24,7 +24,7 @@ import { fmtDateTime } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { PhotoCapture } from "@/components/photo-capture";
 import { deletePackage, deliverPackage, registerPackage, updatePackage } from "./actions";
-import { PhotoThumb } from "./photo-thumb";
+import { PhotoThumb } from "@/components/photo-thumb";
 
 export const metadata: Metadata = { title: "Paquetería" };
 

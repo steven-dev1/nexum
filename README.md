@@ -104,6 +104,10 @@ letra como «a be ce», alfabeto fonético y números hablados), la busca entre 
   (error típico de dictado) para confirmar con un toque. Nunca se autoriza una coincidencia aproximada sola.
 - Ya figura dentro (o no figura dentro al salir) → pide confirmar antes de registrar.
 
+Cada vehículo puede tener una **foto** (bucket privado `vehicle-photos`, carpeta por unidad): el residente la sube al
+registrarlo y, cuando portería valida una placa, la ve junto al resultado para compararla con el vehículo que está en la
+entrada.
+
 Siempre hay un campo de placa manual como respaldo. Requisitos: HTTPS, permiso de micrófono y un navegador con
 reconocimiento de voz (Chrome, Edge o Safari; no Firefox). En Chrome el audio lo procesan los servidores de
 Google. La bitácora no se edita: solo se puede anular un movimiento. No abre talanquera; eso sería una fase

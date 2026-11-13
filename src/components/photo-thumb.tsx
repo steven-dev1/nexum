@@ -1,12 +1,22 @@
 import { Modal } from "@/components/modal";
 
-/** Miniatura de la foto del paquete; al pulsarla se abre en grande. */
-export function PhotoThumb({ url, title }: { url: string; title: string }) {
+/** Miniatura de una foto (paquete, vehículo…); al pulsarla se abre en grande. */
+export function PhotoThumb({
+  url,
+  title,
+  description = "Foto tomada en portería al recibir el paquete.",
+  icon = "package",
+}: {
+  url: string;
+  title: string;
+  description?: string;
+  icon?: "package" | "building";
+}) {
   return (
     <Modal
       title={title}
-      description="Foto tomada en portería al recibir el paquete."
-      icon="package"
+      description={description}
+      icon={icon}
       size="lg"
       triggerLabel={`Ver foto: ${title}`}
       triggerClassName="group relative size-14 shrink-0 cursor-pointer overflow-hidden rounded-xl border border-line bg-surface-2 sm:size-16"

@@ -21,6 +21,8 @@ export type AccessResult = {
   logId?: string;
   unit?: string;
   vehicle?: { kind: string; brand: string | null; color: string | null };
+  /** Foto del vehículo (URL firmada de corta duración), para compararla con el que está en la entrada. */
+  photoUrl?: string;
   suggestions?: { plate: string; unit: string }[];
 };
 
@@ -54,7 +56,7 @@ export async function submitPlate(input: Input): Promise<AccessResult> {
 
   const { data: vehicle } = await supabase
     .from("vehicles")
-    .select("id, kind, brand, color, active, unit_id, units(tower, number)")
+    .select("id, kind, brand, color, active, unit_id, photo_path, units(tower, number)")
     .eq("plate", plate)
     .maybeSingle();
 
@@ -76,6 +78,11 @@ export async function submitPlate(input: Input): Promise<AccessResult> {
   };
 
   const unit = vehicle ? unitLabel(vehicle.units as unknown as Joined) : undefined;
+  let photoUrl: string | undefined;
+  if (vehicle?.photo_path) {
+    const { data: signed } = await supabase.storage.from("vehicle-photos").createSignedUrl(vehicle.photo_path, 600);
+    photoUrl = signed?.signedUrl;
+  }
   const details = vehicle ? { kind: vehicle.kind, brand: vehicle.brand, color: vehicle.color } : undefined;
 
   if (!vehicle) {
@@ -94,7 +101,7 @@ export async function submitPlate(input: Input): Promise<AccessResult> {
   if (!vehicle.active) {
     const logId = await log("inactivo");
     revalidatePath("/accesos");
-    return { ...base, status: "inactivo", unit, vehicle: details, logId: logId ?? undefined };
+    return { ...base, status: "inactivo", unit, vehicle: details, photoUrl, logId: logId ?? undefined };
   }
 
   if (!input.force) {
@@ -108,17 +115,17 @@ export async function submitPlate(input: Input): Promise<AccessResult> {
       .limit(1)
       .maybeSingle();
     if (direction === "ingreso" && last?.direction === "ingreso") {
-      return { ...base, status: "confirmar", unit, vehicle: details, message: "Este vehículo ya figura dentro del conjunto." };
+      return { ...base, status: "confirmar", unit, vehicle: details, photoUrl, message: "Este vehículo ya figura dentro del conjunto." };
     }
     if (direction === "salida" && last?.direction !== "ingreso") {
-      return { ...base, status: "confirmar", unit, vehicle: details, message: "Este vehículo no figura dentro del conjunto." };
+      return { ...base, status: "confirmar", unit, vehicle: details, photoUrl, message: "Este vehículo no figura dentro del conjunto." };
     }
   }
 
   const logId = await log("autorizado");
   if (!logId) return { ...base, status: "error", message: "No se pudo registrar el movimiento." };
   revalidatePath("/accesos");
-  return { ...base, status: "autorizado", unit, vehicle: details, logId };
+  return { ...base, status: "autorizado", unit, vehicle: details, photoUrl, logId };
 }
 
 /** Anula un movimiento registrado (queda en la bitácora marcado como anulado). */

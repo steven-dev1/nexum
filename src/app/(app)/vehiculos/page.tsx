@@ -7,6 +7,7 @@ import { getProfile, isAdmin, unitLabel } from "@/lib/auth";
 import { unitOptions } from "@/lib/options";
 import { createClient } from "@/lib/supabase/server";
 import { createVehicle, deleteVehicle, updateVehicle } from "./actions";
+import { PhotoThumb } from "@/components/photo-thumb";
 import { VehicleFields } from "./vehicle-fields";
 
 export const metadata: Metadata = { title: "Vehículos" };
@@ -22,6 +23,7 @@ type Vehicle = {
   color: string | null;
   active: boolean;
   unit_id: string;
+  photo_path: string | null;
   units: { tower: string; number: string } | null;
 };
 
@@ -63,7 +65,7 @@ async function VehiculosContent({ searchParams }: { searchParams: PageProps<"/ve
   const supabase = await createClient();
   let list = supabase
     .from("vehicles")
-    .select("id, plate, kind, brand, color, active, unit_id, units(tower, number)")
+    .select("id, plate, kind, brand, color, active, unit_id, photo_path, units(tower, number)")
     .order("plate")
     .limit(LIMIT);
   if (!admin) list = list.eq("unit_id", profile.unitId!);
@@ -75,6 +77,14 @@ async function VehiculosContent({ searchParams }: { searchParams: PageProps<"/ve
   ]);
   const vehicles = (listRes.data ?? []) as unknown as Vehicle[];
   const options = unitsRes.data ? unitOptions(unitsRes.data) : undefined;
+
+  // URLs firmadas (1 h): el bucket es privado y la RLS decide quién ve cada foto.
+  const photoUrls = new Map<string, string>();
+  const paths = vehicles.map((v) => v.photo_path).filter((p): p is string => !!p);
+  if (paths.length > 0) {
+    const { data } = await supabase.storage.from("vehicle-photos").createSignedUrls(paths, 3600);
+    for (const s of data ?? []) if (s.path && s.signedUrl) photoUrls.set(s.path, s.signedUrl);
+  }
 
   return (
     <div className="space-y-4">
@@ -116,6 +126,24 @@ async function VehiculosContent({ searchParams }: { searchParams: PageProps<"/ve
           <ul className="divide-y divide-line">
             {vehicles.map((v) => (
               <li key={v.id} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+                <div className="flex min-w-0 items-center gap-3">
+                  {v.photo_path && photoUrls.get(v.photo_path) ? (
+                    <PhotoThumb
+                      url={photoUrls.get(v.photo_path)!}
+                      title={`${v.plate} · ${[kindLabel[v.kind], v.brand, v.color].filter(Boolean).join(" · ")}`}
+                      description="Foto del vehículo, para identificarlo en portería."
+                      icon="building"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className="inline-flex size-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-line bg-surface-2 text-muted sm:size-16"
+                    >
+                      <svg className="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 17h14M3 13l2-6a2 2 0 0 1 1.9-1.4h10.2A2 2 0 0 1 19 7l2 6v4a1 1 0 0 1-1 1h-1.5a1.5 1.5 0 0 1-3 0h-7a1.5 1.5 0 0 1-3 0H4a1 1 0 0 1-1-1v-4z" />
+                      </svg>
+                    </span>
+                  )}
                 <div className="min-w-0">
                   <p className="flex flex-wrap items-center gap-2">
                     <span className="font-mono text-lg font-bold tracking-widest text-ink">{v.plate}</span>
@@ -126,8 +154,9 @@ async function VehiculosContent({ searchParams }: { searchParams: PageProps<"/ve
                     {admin && ` · ${unitLabel(v.units)}`}
                   </p>
                 </div>
+                </div>
                 <div className="flex gap-2">
-                  <EditVehicle vehicle={v} />
+                  <EditVehicle vehicle={v} photoUrl={v.photo_path ? photoUrls.get(v.photo_path) : undefined} />
                   <DeleteVehicle vehicle={v} />
                 </div>
               </li>
@@ -140,14 +169,14 @@ async function VehiculosContent({ searchParams }: { searchParams: PageProps<"/ve
   );
 }
 
-function EditVehicle({ vehicle: v }: { vehicle: Vehicle }) {
+function EditVehicle({ vehicle: v, photoUrl }: { vehicle: Vehicle; photoUrl?: string }) {
   return (
     <Modal title="Editar vehículo" description={v.plate} icon="edit" trigger="Editar" triggerClassName={`${btnGhost} ${btnSm}`}>
       <ActionForm action={updateVehicle} submitLabel="Guardar cambios" pendingLabel="Guardando…">
         <input type="hidden" name="id" value={v.id} />
         <VehicleFields
           editing
-          defaults={{ plate: v.plate, kind: v.kind, brand: v.brand ?? "", color: v.color ?? "", active: v.active }}
+          defaults={{ plate: v.plate, kind: v.kind, brand: v.brand ?? "", color: v.color ?? "", active: v.active, photoUrl }}
         />
       </ActionForm>
     </Modal>
