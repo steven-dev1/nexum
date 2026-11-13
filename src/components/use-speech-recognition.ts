@@ -31,7 +31,7 @@ const getCtor = (): RecognitionCtor | null => {
 const noopSubscribe = () => () => {};
 
 /** Escucha continua: se apaga sola tras este tiempo sin que nadie hable. */
-const IDLE_MS = 120_000;
+const IDLE_MS = 30_000;
 
 const ERRORS: Record<string, string> = {
   "not-allowed": "El navegador no tiene permiso para usar el micrófono. Actívalo en la barra de direcciones.",
@@ -163,6 +163,7 @@ export function useSpeechRecognition({
         idleRef.current = setTimeout(() => {
           if (recRef.current === rec) {
             note("apagado por inactividad");
+            setError("Micrófono apagado tras 30 segundos sin usarse. Toca para encenderlo.");
             stop();
           }
         }, IDLE_MS);
@@ -188,6 +189,7 @@ export function useSpeechRecognition({
         if (recRef.current !== rec) return;
         note("voz detectada");
         setPhase("hearing");
+        armIdle(); // si hay voz, el contador de inactividad vuelve a empezar
       };
       rec.onresult = (e) => {
         if (recRef.current !== rec) return;
