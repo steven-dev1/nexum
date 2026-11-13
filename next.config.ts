@@ -5,10 +5,10 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {
-    // Caché del navegador: al volver a una sección ya visitada se muestra al instante lo que se vio
-    // (sin esqueleto) y <BackgroundRefresh> la actualiza en silencio. Las acciones que modifican
+    // Caché del navegador (3 min): al volver a una sección ya visitada se muestra al instante lo que se vio
+    // (sin esqueleto) y <BackgroundRefresh> la actualiza en silencio si ya pasaron más de 5 segundos. Las acciones que modifican
     // datos (revalidatePath) vacían esta caché, así que tras crear o editar algo se ve el cambio.
-    staleTimes: { dynamic: 60, static: 300 },
+    staleTimes: { dynamic: 180, static: 180 },
     serverActions: {
       // Fotos de paquetes: se comprimen en el navegador (≈300 KB), con margen de sobra.
       bodySizeLimit: "4mb",

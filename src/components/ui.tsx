@@ -115,19 +115,24 @@ export function Field({
 /** Relleno del contenido dinámico de una página (el título y la estructura ya están en el shell). */
 export function ContentSkeleton() {
   return (
-    <div className="animate-pulse space-y-4" aria-hidden>
-      <div className="h-28 rounded-xl bg-surface-2" />
-      <div className="h-44 rounded-xl bg-surface-2" />
+    // El contenedor aparece con retraso (0,35 s): si los datos llegan antes, nunca se ve el esqueleto.
+    <div className="animate-skeleton-in" aria-hidden>
+      <div className="animate-pulse space-y-4">
+        <div className="h-28 rounded-xl bg-surface-2" />
+        <div className="h-44 rounded-xl bg-surface-2" />
+      </div>
     </div>
   );
 }
 
 export function PageSkeleton() {
   return (
-    <div className="animate-pulse space-y-4" aria-hidden>
-      <div className="h-8 w-56 rounded-lg bg-surface-2" />
-      <div className="h-24 rounded-xl bg-surface-2" />
-      <div className="h-40 rounded-xl bg-surface-2" />
+    <div className="animate-skeleton-in" aria-hidden>
+      <div className="animate-pulse space-y-4">
+        <div className="h-8 w-56 rounded-lg bg-surface-2" />
+        <div className="h-24 rounded-xl bg-surface-2" />
+        <div className="h-40 rounded-xl bg-surface-2" />
+      </div>
     </div>
   );
 }

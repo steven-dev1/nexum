@@ -7,7 +7,7 @@ import { startTransition, useEffect } from "react";
 const lastFetched = new Map<string, number>();
 
 /** Una sección vista hace menos de esto se considera fresca y no se vuelve a pedir. */
-const FRESH_MS = 20_000;
+const FRESH_MS = 5_000;
 /** Al volver a la app después de este tiempo, se actualiza la sección visible. */
 const AWAY_MS = 60_000;
 

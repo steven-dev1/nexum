@@ -208,26 +208,53 @@ async function PaqueteriaContent() {
         ) : (
           <ul className="divide-y divide-line">
             {history.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
-                <div className="flex min-w-0 items-center gap-3">
+              <li
+                key={p.id}
+                className="flex flex-col gap-2 py-3.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+              >
+                <div className="flex min-w-0 items-start gap-3 sm:items-center">
                   {photoOf(p) && (
                     <PhotoThumb url={photoOf(p)!} title={`${p.carrier ?? "Paquete"} · ${unitLabel(p.units)}`} />
                   )}
-                  <div className="min-w-0">
-                    <p className="font-medium text-ink">
-                      {p.carrier ?? "Paquete"} <span className="font-normal text-muted">· {unitLabel(p.units)}</span>
-                    </p>
-                    <p className="text-xs text-muted">
-                      Llegó {fmtDateTime(p.received_at)}
-                      {p.delivered_at ? ` · entregado ${fmtDateTime(p.delivered_at)}` : ""}
-                      {p.delivered_to ? ` · recibió ${p.delivered_to}` : ""}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="break-words font-semibold text-ink">{p.carrier ?? "Paquete"}</p>
+                        <p className="text-sm text-muted">{unitLabel(p.units)}</p>
+                      </div>
+                      {/* En celular la etiqueta va arriba a la derecha; en pantallas grandes, al final de la fila. */}
+                      <span className="shrink-0 sm:hidden">
+                        <Badge tone={p.status === "entregado" ? "success" : "neutral"}>
+                          {p.status === "entregado" ? "Entregado" : "Devuelto"}
+                        </Badge>
+                      </span>
+                    </div>
+                    <dl className="mt-1.5 space-y-0.5 text-xs text-muted">
+                      <div className="flex gap-1.5">
+                        <dt className="w-16 shrink-0">Llegó</dt>
+                        <dd className="min-w-0 text-ink">{fmtDateTime(p.received_at)}</dd>
+                      </div>
+                      {p.delivered_at && (
+                        <div className="flex gap-1.5">
+                          <dt className="w-16 shrink-0">Entregado</dt>
+                          <dd className="min-w-0 text-ink">{fmtDateTime(p.delivered_at)}</dd>
+                        </div>
+                      )}
+                      {p.delivered_to && (
+                        <div className="flex gap-1.5">
+                          <dt className="w-16 shrink-0">Recibió</dt>
+                          <dd className="min-w-0 break-words text-ink">{p.delivered_to}</dd>
+                        </div>
+                      )}
+                    </dl>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge tone={p.status === "entregado" ? "success" : "neutral"}>
-                    {p.status === "entregado" ? "Entregado" : "Devuelto"}
-                  </Badge>
+                <div className="flex items-center justify-end gap-2">
+                  <span className="hidden sm:inline-flex">
+                    <Badge tone={p.status === "entregado" ? "success" : "neutral"}>
+                      {p.status === "entregado" ? "Entregado" : "Devuelto"}
+                    </Badge>
+                  </span>
                   {staff && <DeletePackage pkg={p} />}
                 </div>
               </li>
