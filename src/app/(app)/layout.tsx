@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { AdminNavLink, AppNav, RoleNavLink } from "@/components/app-nav";
 import { BackgroundRefresh } from "@/components/background-refresh";
 import { Brand } from "@/components/brand";
+import { ConnectionStatus } from "@/components/connection-status";
+import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { PushToggle } from "@/components/push-toggle";
 import { MobileNav, SheetLink } from "@/components/mobile-nav";
 import { Badge, btnGhost } from "@/components/ui";
@@ -173,6 +175,8 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
       </div>
 
       <BackgroundRefresh />
+      <RealtimeRefresh />
+      <ConnectionStatus />
       <MobileNav
         adminSlot={
           <>

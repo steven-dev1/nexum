@@ -129,6 +129,16 @@ horario, máx. 72 h).
 - El **documento** del visitante se guarda aparte (`visit_private`), solo lo ve el personal y debe borrarse a los 90 días
   (Ley 1581 de 2012). Para escanear el QR se necesita permiso de cámara y HTTPS.
 
+## Tiempo real y modo sin conexión
+
+- **Tiempo real**: la pantalla se actualiza sola cuando alguien crea o cambia algo que puedes ver (paquetes, comunicados,
+  asambleas y votos, reservas, accesos y visitas). Usa Supabase Realtime, que respeta la RLS: solo llegan los cambios de
+  filas que esa persona puede leer. `BackgroundRefresh` queda de respaldo.
+- **Sin conexión**: el service worker (`public/sw.js`) guarda los recursos estáticos y las últimas 12 páginas que viste
+  (24 h) para abrirlas si se cae la red; aparece una franja «Sin conexión» y los formularios no se pueden enviar.
+  Las copias tienen datos personales: no se guardan `/api`, `/login` ni `/invitacion`, y **se borran al llegar a /login**
+  (cerrar sesión o sesión vencida). No hay escritura sin conexión.
+
 ## Comunicados programados
 
 Al crear un comunicado se elige **Publicar ahora**, **Programar** (fecha y hora) o **Guardar como borrador**.
