@@ -98,7 +98,7 @@ export function VoiceConsole() {
       setHeard(alternatives[0] ?? null);
       const parsed = parseSpokenCommand(alternatives);
       if (parsed.plates.length === 0) {
-        setResult(null);
+        // Se conserva la tarjeta anterior: en escucha continua también llega conversación que no es una orden.
         speak("No entendí la placa. Repite, por favor.", voiceReplyRef.current);
         return;
       }
@@ -107,7 +107,11 @@ export function VoiceConsole() {
     [run],
   );
 
-  const { supported, listening, interim, error, phase, trail, start, stop } = useSpeechRecognition({ onResult: onSpoken });
+  const { supported, listening, interim, error, phase, trail, start, stop } = useSpeechRecognition({
+    onResult: onSpoken,
+    // Con respuesta hablada el micrófono oiría la propia voz del sistema: ahí se usa la escucha de una sola frase.
+    continuous: !voiceReply,
+  });
 
   // Barra espaciadora = hablar (si no se está escribiendo en un campo).
   useEffect(() => {
@@ -166,7 +170,7 @@ export function VoiceConsole() {
               </svg>
             </button>
             <p className="text-sm font-semibold text-ink" aria-live="polite">
-              {listening ? (phase === "hearing" ? "Te escucho…" : "Habla ahora: «ingreso» o «salida» y la placa") : pending ? "Verificando…" : "Toca el micrófono o presiona la barra espaciadora"}
+              {listening ? (phase === "hearing" ? "Te escucho…" : voiceReply ? "Habla ahora: «ingreso» o «salida» y la placa" : "Micrófono encendido: di «ingreso» o «salida» y la placa. Toca de nuevo para apagarlo") : pending ? "Verificando…" : "Toca el micrófono o presiona la barra espaciadora"}
             </p>
             {(listening ? interim : heard) && (
               <p className="max-w-md rounded-lg bg-surface-2 px-3 py-1.5 text-sm text-muted">

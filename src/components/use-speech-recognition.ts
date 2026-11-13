@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 // El navegador expone la API como SpeechRecognition (Chrome/Edge/Safari con prefijo webkit); TypeScript no la tipa.
 type Alternative = { transcript: string };
 type RecognitionResult = { isFinal: boolean; length: number; [index: number]: Alternative };
-type RecognitionEvent = { results: { length: number; [index: number]: RecognitionResult } };
+type RecognitionEvent = { resultIndex?: number; results: { length: number; [index: number]: RecognitionResult } };
 type Recognition = {
   lang: string;
   continuous: boolean;
@@ -29,6 +29,9 @@ const getCtor = (): RecognitionCtor | null => {
 };
 
 const noopSubscribe = () => () => {};
+
+/** Escucha continua: se apaga sola tras este tiempo sin que nadie hable. */
+const IDLE_MS = 120_000;
 
 const ERRORS: Record<string, string> = {
   "not-allowed": "El navegador no tiene permiso para usar el micrófono. Actívalo en la barra de direcciones.",
@@ -69,9 +72,16 @@ function discard(rec: Recognition) {
  */
 export function useSpeechRecognition({
   lang = "es-CO",
+  continuous = false,
   onResult,
 }: {
   lang?: string;
+  /**
+   * Escucha continua: el micrófono queda abierto y cada frase completa llega a `onResult`, sin cerrar entre una y otra.
+   * Evita el fallo de los celulares al reabrir el micrófono (cancelan la escucha nueva). Se apaga sola tras
+   * `IDLE_MS` sin hablar.
+   */
+  continuous?: boolean;
   onResult: (alternatives: string[]) => void;
 }) {
   const supported = useSyncExternalStore(
@@ -88,6 +98,10 @@ export function useSpeechRecognition({
   const recRef = useRef<Recognition | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const resultRef = useRef(onResult);
+  const continuousRef = useRef(continuous);
+  const idleRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  /** Cierres seguidos muy rápidos en escucha continua (para no reabrir en bucle). */
+  const quickEndsRef = useRef(0);
   /** El usuario pidió detener: un «aborted» posterior es normal y no debe reintentarse. */
   const stoppingRef = useRef(false);
   /** Cuándo terminó la última escucha: el celular necesita un respiro antes de abrir otra. */
@@ -96,12 +110,14 @@ export function useSpeechRecognition({
 
   useEffect(() => {
     resultRef.current = onResult;
-  }, [onResult]);
+    continuousRef.current = continuous;
+  }, [onResult, continuous]);
 
   const note = useCallback((event: string) => setTrail((t) => [...t.slice(-5), event]), []);
 
   const reset = useCallback(() => {
     clearTimeout(timerRef.current);
+    clearTimeout(idleRef.current);
     lastEndRef.current = Date.now();
     recRef.current = null;
     setListening(false);
@@ -112,6 +128,7 @@ export function useSpeechRecognition({
   const stop = useCallback(() => {
     stoppingRef.current = true;
     clearTimeout(timerRef.current);
+    clearTimeout(idleRef.current);
     const rec = recRef.current;
     if (!rec) {
       reset(); // p. ej. se tocó «detener» mientras se esperaba a liberar el audio
@@ -136,10 +153,24 @@ export function useSpeechRecognition({
       let failed = false;
       let retry = false;
       let lastInterim = "";
+      const startedAt = Date.now();
+      const isContinuous = continuousRef.current;
+
+      /** En escucha continua se apaga sola si pasa un rato sin que nadie hable. */
+      const armIdle = () => {
+        if (!isContinuous) return;
+        clearTimeout(idleRef.current);
+        idleRef.current = setTimeout(() => {
+          if (recRef.current === rec) {
+            note("apagado por inactividad");
+            stop();
+          }
+        }, IDLE_MS);
+      };
 
       const rec = new Ctor();
       rec.lang = lang;
-      rec.continuous = false;
+      rec.continuous = isContinuous;
       rec.interimResults = true;
       rec.maxAlternatives = 5;
 
@@ -147,6 +178,11 @@ export function useSpeechRecognition({
         if (recRef.current !== rec) return;
         note("micrófono activo");
         setPhase("waiting");
+        // Ya hay audio: el temporizador de «sin respuesta» no aplica.
+        if (isContinuous) {
+          clearTimeout(timerRef.current);
+          armIdle();
+        }
       };
       rec.onspeechstart = () => {
         if (recRef.current !== rec) return;
@@ -155,19 +191,29 @@ export function useSpeechRecognition({
       };
       rec.onresult = (e) => {
         if (recRef.current !== rec) return;
-        const last = e.results[e.results.length - 1];
-        if (!last.isFinal) {
-          lastInterim = last[0]?.transcript ?? "";
-          setInterim(lastInterim);
-          return;
+        // Solo las frases nuevas (en escucha continua el navegador entrega la lista acumulada).
+        const from = e.resultIndex ?? e.results.length - 1;
+        for (let i = Math.max(0, from); i < e.results.length; i++) {
+          const item = e.results[i];
+          if (!item.isFinal) {
+            lastInterim = item[0]?.transcript ?? "";
+            setInterim(lastInterim);
+            continue;
+          }
+          gotFinal = true;
+          lastInterim = "";
+          note("resultado");
+          const alternatives = Array.from({ length: item.length }, (_, k) => item[k].transcript).filter(Boolean);
+          setInterim(alternatives[0] ?? "");
+          if (alternatives.length) resultRef.current(alternatives);
+          if (isContinuous) {
+            quickEndsRef.current = 0;
+            armIdle();
+          } else {
+            // Ya hay resultado: se cierra la escucha sin esperar al silencio del navegador.
+            stop();
+          }
         }
-        gotFinal = true;
-        note("resultado");
-        const alternatives = Array.from({ length: last.length }, (_, i) => last[i].transcript).filter(Boolean);
-        setInterim(alternatives[0] ?? "");
-        if (alternatives.length) resultRef.current(alternatives);
-        // Ya hay resultado: se cierra la escucha sin esperar al silencio del navegador.
-        stop();
       };
       rec.onnomatch = () => {
         if (recRef.current === rec) setError("No se entendió. Habla claro y vuelve a intentar.");
@@ -175,6 +221,8 @@ export function useSpeechRecognition({
       rec.onerror = (e) => {
         if (recRef.current !== rec) return;
         note(`error: ${e.error}`);
+        // En escucha continua «no-speech» solo significa que nadie habló: se vuelve a abrir sin mostrar error.
+        if (isContinuous && e.error === "no-speech" && !stoppingRef.current) return;
         // Los celulares a veces cancelan la sesión recién abierta («aborted»): se reintenta una vez, en silencio.
         if (e.error === "aborted" && !stoppingRef.current && !gotFinal && !lastInterim && attempt < 2) {
           retry = true;
@@ -187,6 +235,19 @@ export function useSpeechRecognition({
         // Una sesión vieja no debe cerrar la nueva.
         if (recRef.current !== rec) return;
         note("fin");
+        // Escucha continua: el navegador la cierra de vez en cuando; se reabre sola mientras siga activada.
+        if (isContinuous && !stoppingRef.current && !failed && !retry) {
+          quickEndsRef.current = Date.now() - startedAt < 2500 ? quickEndsRef.current + 1 : 0;
+          if (quickEndsRef.current >= 3) {
+            reset();
+            setError("El micrófono se cerró varias veces seguidas. Toca para volver a activarlo.");
+            return;
+          }
+          recRef.current = null;
+          note("reabriendo");
+          timerRef.current = setTimeout(() => beginRef.current?.(Ctor, 0), 700);
+          return;
+        }
         if (retry) {
           // Se vuelve a abrir tras una pausa; la pantalla sigue en «escuchando».
           recRef.current = null;
@@ -236,6 +297,8 @@ export function useSpeechRecognition({
     if (recRef.current) discard(recRef.current);
     recRef.current = null;
     stoppingRef.current = false;
+    quickEndsRef.current = 0;
+    clearTimeout(idleRef.current);
 
     setError(null);
     setInterim("");
@@ -260,6 +323,7 @@ export function useSpeechRecognition({
   useEffect(
     () => () => {
       clearTimeout(timerRef.current);
+      clearTimeout(idleRef.current);
       if (recRef.current) discard(recRef.current);
     },
     [],
