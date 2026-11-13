@@ -163,6 +163,7 @@ export interface Database {
           transcript: string | null;
           unit_id: string | null;
           vehicle_id: string | null;
+          visit_id: string | null;
           voided_at: string | null;
         };
         Insert: {
@@ -176,6 +177,7 @@ export interface Database {
           transcript?: string | null;
           unit_id?: string | null;
           vehicle_id?: string | null;
+          visit_id?: string | null;
           voided_at?: string | null;
         };
         Update: {
@@ -189,6 +191,7 @@ export interface Database {
           transcript?: string | null;
           unit_id?: string | null;
           vehicle_id?: string | null;
+          visit_id?: string | null;
           voided_at?: string | null;
         };
         Relationships: [
@@ -248,6 +251,100 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: "vehicles_unit_id_fkey";
+            columns: ["unit_id"];
+            isOneToOne: false;
+            referencedRelation: "units";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      visit_private: {
+        Row: {
+          created_at: string;
+          document: string;
+          visit_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          document: string;
+          visit_id: string;
+        };
+        Update: {
+          created_at?: string;
+          document?: string;
+          visit_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "visit_private_visit_id_fkey";
+            columns: ["visit_id"];
+            isOneToOne: false;
+            referencedRelation: "visits";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      visits: {
+        Row: {
+          checked_in_at: string | null;
+          checked_in_by: string | null;
+          checked_out_at: string | null;
+          checked_out_by: string | null;
+          code: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          kind: string;
+          notes: string | null;
+          plate: string | null;
+          source: string;
+          status: string;
+          unit_id: string;
+          valid_from: string;
+          valid_until: string;
+          visitor_name: string;
+        };
+        Insert: {
+          checked_in_at?: string | null;
+          checked_in_by?: string | null;
+          checked_out_at?: string | null;
+          checked_out_by?: string | null;
+          code?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          kind?: string;
+          notes?: string | null;
+          plate?: string | null;
+          source?: string;
+          status?: string;
+          unit_id: string;
+          valid_from?: string;
+          valid_until: string;
+          visitor_name: string;
+        };
+        Update: {
+          checked_in_at?: string | null;
+          checked_in_by?: string | null;
+          checked_out_at?: string | null;
+          checked_out_by?: string | null;
+          code?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          kind?: string;
+          notes?: string | null;
+          plate?: string | null;
+          source?: string;
+          status?: string;
+          unit_id?: string;
+          valid_from?: string;
+          valid_until?: string;
+          visitor_name?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "visits_unit_id_fkey";
             columns: ["unit_id"];
             isOneToOne: false;
             referencedRelation: "units";
@@ -788,6 +885,22 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      cancel_visit: { Args: { p_id: string }; Returns: Json };
+      check_in_visit: { Args: { p_ref: string }; Returns: Json };
+      check_out_visit: { Args: { p_id: string }; Returns: Json };
+      decide_visit: { Args: { p_approve: boolean; p_id: string }; Returns: Json };
+      register_walkin: {
+        Args: {
+          p_direct: boolean;
+          p_document: string;
+          p_kind: string;
+          p_name: string;
+          p_notes: string;
+          p_plate: string;
+          p_unit: string;
+        };
+        Returns: Json;
+      };
       update_my_contact: { Args: { p_phone: string; p_whatsapp: boolean }; Returns: string };
       cast_vote: { Args: { p_option: string; p_poll: string }; Returns: string };
       poll_participation: { Args: { p_poll: string }; Returns: { total: number; voted: number }[] };

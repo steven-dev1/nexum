@@ -23,6 +23,11 @@ async function RoleItems() {
       )}
       {vehicles && (
         <li>
+          <RoleNavLink which="visitas" variant="side" />
+        </li>
+      )}
+      {vehicles && (
+        <li>
           <RoleNavLink which="vehiculos" variant="side" />
         </li>
       )}
@@ -39,6 +44,11 @@ async function RoleSheetItems() {
       {isStaff(profile) && (
         <li>
           <SheetLink href="/accesos" icon="gate" label="Accesos" hint="Ingreso de vehículos por voz" />
+        </li>
+      )}
+      {vehicles && (
+        <li>
+          <SheetLink href="/visitas" icon="visitor" label="Visitas" hint="Autoriza visitas con código o QR" />
         </li>
       )}
       {vehicles && (

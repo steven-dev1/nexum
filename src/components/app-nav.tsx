@@ -80,6 +80,7 @@ export function AppNav({ variant, extra }: { variant: "side" | "bottom"; extra?:
 
 const roleItems = {
   accesos: { href: "/accesos", label: "Accesos", icon: icon(<><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><path d="m10 17 5-5-5-5M15 12H3" /></>) },
+  visitas: { href: "/visitas", label: "Visitas", icon: icon(<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="m16 11 2 2 4-4" /></>) },
   vehiculos: { href: "/vehiculos", label: "Vehículos", icon: icon(<><path d="M5 17h14M3 13l2-6a2 2 0 0 1 1.9-1.4h10.2A2 2 0 0 1 19 7l2 6v4a1 1 0 0 1-1 1h-1.5a1.5 1.5 0 0 1-3 0h-7a1.5 1.5 0 0 1-3 0H4a1 1 0 0 1-1-1v-4z" /><path d="M3 13h18" /></>) },
 } satisfies Record<string, Item>;
 

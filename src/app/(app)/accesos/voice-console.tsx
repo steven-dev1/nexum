@@ -261,6 +261,7 @@ export function VoiceConsole() {
               )}
             </p>
           )}
+          {result.visitLabel && <p className="mt-1 text-sm font-medium text-ink">{result.visitLabel}</p>}
           {result.message && <p className="mt-2 text-sm font-medium text-ink">{result.message}</p>}
           {result.status === "no_registrada" && (
             <p className="mt-2 text-sm text-ink">Esta placa no está registrada. Intento guardado en la bitácora.</p>

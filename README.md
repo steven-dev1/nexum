@@ -89,6 +89,8 @@ revierte al final (no deja datos ni usuarios de prueba). Esperado:
 | `/comunicados` | lee y marca leído (segmentado por torre) | lee | publica, programa, guarda borradores, adjunta PDF |
 | `/vehiculos` | registra los vehículos de su unidad | — | administra todos |
 | `/accesos` | — | registra ingresos y salidas de vehículos (por voz) | igual que portería |
+| `/visitas` | autoriza visitas y vehículos temporales (código y QR), aprueba o rechaza las que portería solicita | — | ve y cancela todas |
+| `/accesos` → Visitantes | — | valida por código o QR, registra llegadas sin aviso, marca salidas | igual que portería |
 | `/directorio` | consulta teléfonos | consulta | administra los contactos |
 | `/admin/invitaciones` | — | — | crea, ve y cancela enlaces de invitación |
 
@@ -112,6 +114,20 @@ Siempre hay un campo de placa manual como respaldo. Requisitos: HTTPS, permiso d
 reconocimiento de voz (Chrome, Edge o Safari; no Firefox). En Chrome el audio lo procesan los servidores de
 Google. La bitácora no se edita: solo se puede anular un movimiento. No abre talanquera; eso sería una fase
 posterior (webhook o relé).
+
+## Visitantes y permisos temporales
+
+Una **visita** sin placa es un visitante a pie; con placa es un **vehículo con permiso temporal** (solo vale dentro de su
+horario, máx. 72 h).
+
+- El residente la autoriza en **Visitas** (nombre, tipo, horario y, si llega en vehículo, la placa) y comparte el
+  **código de 6 caracteres o el QR**.
+- Portería, en **Accesos → Visitantes**, valida el código (escrito o con la cámara), registra la llegada de quien aparece
+  sin aviso (pide autorización al residente, que recibe un aviso, o ingreso directo) y marca la salida. Si la visita llega
+  en vehículo, también sirve decir «ingreso» y la placa en la pestaña Vehículos.
+- Los cambios de estado pasan por funciones de la base (no por `update` directo) que validan quién puede hacerlos.
+- El **documento** del visitante se guarda aparte (`visit_private`), solo lo ve el personal y debe borrarse a los 90 días
+  (Ley 1581 de 2012). Para escanear el QR se necesita permiso de cámara y HTTPS.
 
 ## Comunicados programados
 

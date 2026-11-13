@@ -58,6 +58,9 @@ const icons = {
       <path d="m9 12 2 2 4-4" />
     </>
   ),
+  visitor: (
+    <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="m16 11 2 2 4-4" /></>
+  ),
   gate: (
     <><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><path d="m10 17 5-5-5-5M15 12H3" /></>
   ),
@@ -87,7 +90,7 @@ const PRIMARY: { href: string; label: string; icon: NavIcon }[] = [
   { href: "/comunicados", label: "Avisos", icon: "megaphone" },
 ];
 /** Rutas que viven dentro de «Más» (para resaltar el botón cuando estás en una de ellas). */
-const OVERFLOW_PATHS = ["/asambleas", "/directorio", "/accesos", "/vehiculos", "/admin"];
+const OVERFLOW_PATHS = ["/asambleas", "/directorio", "/accesos", "/vehiculos", "/visitas", "/admin"];
 
 const isActive = (pathname: string, href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { Badge, Card, ContentSkeleton, Empty, PageHeader, SectionTitle, btnGhost, btnSm } from "@/components/ui";
 import { getProfile, isStaff, unitLabel } from "@/lib/auth";
@@ -6,11 +7,12 @@ import { bogotaToIso, fmtTime, todayBogota } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { undoAccessForm } from "./actions";
 import { DirectionIcon } from "./direction-icon";
+import { VisitorsPanel } from "./visitors-panel";
 import { VoiceConsole } from "./voice-console";
 
 export const metadata: Metadata = { title: "Accesos" };
 
-export default function AccesosPage() {
+export default function AccesosPage({ searchParams }: PageProps<"/accesos">) {
   return (
     <>
       <PageHeader
@@ -18,7 +20,7 @@ export default function AccesosPage() {
         description="Di «ingresa placa» y la placa, o escríbela. Se valida contra los vehículos registrados."
       />
       <Suspense fallback={<ContentSkeleton />}>
-        <AccesosContent />
+        <AccesosContent searchParams={searchParams} />
       </Suspense>
     </>
   );
@@ -38,13 +40,47 @@ type Row = {
 const resultTone = { autorizado: "success", no_registrada: "danger", inactivo: "danger" } as const;
 const resultLabel = { autorizado: "Autorizado", no_registrada: "No registrada", inactivo: "Inactivo" } as const;
 
-async function AccesosContent() {
+async function AccesosContent({ searchParams }: { searchParams: PageProps<"/accesos">["searchParams"] }) {
+  const params = await searchParams;
+  const tab = (Array.isArray(params.tab) ? params.tab[0] : params.tab) === "visitantes" ? "visitantes" : "vehiculos";
   const profile = await getProfile();
   if (!isStaff(profile)) {
     return (
       <Card>
         <Empty>Esta sección es para portería y administración.</Empty>
       </Card>
+    );
+  }
+
+  const tabs = (
+    <div role="tablist" aria-label="Tipo de acceso" className="inline-flex rounded-xl border border-line bg-surface p-1">
+      {(
+        [
+          ["vehiculos", "Vehículos"],
+          ["visitantes", "Visitantes"],
+        ] as const
+      ).map(([key, label]) => (
+        <Link
+          key={key}
+          role="tab"
+          aria-selected={tab === key}
+          href={key === "vehiculos" ? "/accesos" : "/accesos?tab=visitantes"}
+          className={`rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${
+            tab === key ? "bg-primary text-on-primary" : "text-muted hover:text-ink"
+          }`}
+        >
+          {label}
+        </Link>
+      ))}
+    </div>
+  );
+
+  if (tab === "visitantes") {
+    return (
+      <div className="space-y-6">
+        {tabs}
+        <VisitorsPanel />
+      </div>
     );
   }
 
@@ -59,6 +95,7 @@ async function AccesosContent() {
 
   return (
     <div className="space-y-6">
+      {tabs}
       <VoiceConsole />
 
       <Card>

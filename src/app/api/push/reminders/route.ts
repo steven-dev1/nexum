@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { sendNotification, setVapidDetails } from "web-push";
 import { fmtDateTime } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { pushTo, type Admin, type Payload } from "@/lib/push-admin";
 import { sendWhatsApp } from "@/lib/whatsapp";
 
 /**
@@ -85,37 +86,10 @@ export async function GET(request: Request) {
   };
   const polls = await notifyPolls(admin, send);
   const announcements = await notifyAnnouncements(admin, send);
+  // Privacidad (Ley 1581): el documento de los visitantes se conserva solo 90 días.
+  const cutoff = new Date(new Date().getTime() - 90 * 24 * 3600_000).toISOString();
+  await admin.from("visit_private").delete().lt("created_at", cutoff);
   return Response.json({ reminders: claimed?.length ?? 0, sent, polls, announcements });
-}
-
-type Admin = NonNullable<ReturnType<typeof createAdminClient>>;
-type Payload = { title: string; body: string; url: string; tag: string };
-
-/** Envía una notificación a los dispositivos de `userIds` (quita los que ya no existen). */
-async function pushTo(admin: Admin, userIds: string[], payload: Payload) {
-  if (userIds.length === 0) return 0;
-  const { data: subs } = await admin
-    .from("push_subscriptions")
-    .select("id, endpoint, p256dh, auth")
-    .in("user_id", [...new Set(userIds)]);
-  const body = JSON.stringify({ ...payload });
-  const gone: string[] = [];
-  let sent = 0;
-  await Promise.all(
-    (subs ?? []).map(async (s) => {
-      try {
-        await sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body, {
-          TTL: 60 * 60 * 6,
-        });
-        sent++;
-      } catch (e) {
-        const status = (e as { statusCode?: number }).statusCode;
-        if (status === 404 || status === 410) gone.push(s.id);
-      }
-    }),
-  );
-  if (gone.length > 0) await admin.from("push_subscriptions").delete().in("id", gone);
-  return sent;
 }
 
 /**
