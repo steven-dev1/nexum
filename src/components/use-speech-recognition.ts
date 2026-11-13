@@ -62,11 +62,34 @@ export function useSpeechRecognition({
     resultRef.current = onResult;
   }, [onResult]);
 
-  const stop = useCallback(() => recRef.current?.stop(), []);
+  /** Termina la escucha; si el navegador no avisa que terminó (pasa en el celular), se fuerza el cierre. */
+  const stop = useCallback(() => {
+    const rec = recRef.current;
+    if (!rec) return;
+    rec.stop();
+    setTimeout(() => {
+      if (recRef.current === rec) {
+        rec.abort();
+        recRef.current = null;
+        setListening(false);
+      }
+    }, 1500);
+  }, []);
 
   const start = useCallback(() => {
     const Ctor = getCtor();
-    if (!Ctor || recRef.current) return;
+    if (!Ctor) return;
+    // Si quedó una sesión anterior sin cerrar, se descarta: antes esto dejaba el micrófono sin responder.
+    const previous = recRef.current;
+    if (previous) {
+      recRef.current = null;
+      previous.onresult = previous.onerror = previous.onend = null;
+      try {
+        previous.abort();
+      } catch {
+        /* ya estaba cerrada */
+      }
+    }
     setError(null);
     setInterim("");
 
@@ -77,6 +100,7 @@ export function useSpeechRecognition({
     rec.maxAlternatives = 5;
 
     rec.onresult = (e) => {
+      if (recRef.current !== rec) return;
       const last = e.results[e.results.length - 1];
       if (!last.isFinal) {
         setInterim(last[0]?.transcript ?? "");
@@ -85,11 +109,16 @@ export function useSpeechRecognition({
       const alternatives = Array.from({ length: last.length }, (_, i) => last[i].transcript).filter(Boolean);
       setInterim(alternatives[0] ?? "");
       if (alternatives.length) resultRef.current(alternatives);
+      // Ya hay resultado: se cierra la escucha sin esperar al silencio del navegador.
+      stop();
     };
     rec.onerror = (e) => {
+      if (recRef.current !== rec) return;
       if (e.error !== "aborted") setError(ERRORS[e.error] ?? "No se pudo usar el reconocimiento de voz.");
     };
     rec.onend = () => {
+      // Una sesión vieja no debe cerrar la nueva.
+      if (recRef.current !== rec) return;
       recRef.current = null;
       setListening(false);
     };
@@ -102,7 +131,7 @@ export function useSpeechRecognition({
       recRef.current = null;
       setListening(false);
     }
-  }, [lang]);
+  }, [lang, stop]);
 
   // Libera el micrófono al salir de la pantalla.
   useEffect(() => () => recRef.current?.abort(), []);

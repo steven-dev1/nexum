@@ -38,7 +38,7 @@ async function RoleSheetItems() {
     <>
       {isStaff(profile) && (
         <li>
-          <SheetLink href="/accesos" icon="car" label="Accesos" hint="Ingreso de vehículos por voz" />
+          <SheetLink href="/accesos" icon="gate" label="Accesos" hint="Ingreso de vehículos por voz" />
         </li>
       )}
       {vehicles && (

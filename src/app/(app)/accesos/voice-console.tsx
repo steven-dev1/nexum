@@ -119,7 +119,11 @@ export function VoiceConsole() {
               key={d}
               type="button"
               aria-pressed={mode === d}
-              onClick={() => setMode(d)}
+              onClick={(e) => {
+                setMode(d);
+                // Sin foco en el botón, la barra espaciadora vuelve a activar el micrófono.
+                e.currentTarget.blur();
+              }}
               className={`cursor-pointer rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${
                 mode === d ? "bg-primary text-on-primary" : "text-muted hover:text-ink"
               }`}

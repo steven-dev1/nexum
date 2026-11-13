@@ -105,7 +105,8 @@ const PHONETIC: Record<string, string> = {
 };
 
 const INGRESO = new Set(["ingresa", "ingresar", "ingreso", "ingrese", "entra", "entrar", "entrada", "entre", "abre", "abrir"]);
-const SALIDA = new Set(["sale", "salir", "salida", "salga"]);
+// Incluye variantes que el reconocedor suele devolver al oír «sale» («sal», «sali»).
+const SALIDA = new Set(["sale", "salir", "salida", "salga", "salgo", "saliendo", "sal", "sali", "saca", "sacar", "retira", "retirar"]);
 const FILLER = new Set(["placa", "placas", "numero", "numeros", "por", "favor", "vehiculo", "carro", "moto", "es", "la", "el", "con", "letras"]);
 
 /** Convierte los tokens dictados en caracteres de placa (una letra/dígito por elemento). */
