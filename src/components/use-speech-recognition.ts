@@ -88,6 +88,11 @@ export function useSpeechRecognition({
   const recRef = useRef<Recognition | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const resultRef = useRef(onResult);
+  /** El usuario pidió detener: un «aborted» posterior es normal y no debe reintentarse. */
+  const stoppingRef = useRef(false);
+  /** Cuándo terminó la última escucha: el celular necesita un respiro antes de abrir otra. */
+  const lastEndRef = useRef(0);
+  const beginRef = useRef<((Ctor: RecognitionCtor, attempt: number) => void) | null>(null);
 
   useEffect(() => {
     resultRef.current = onResult;
@@ -97,6 +102,7 @@ export function useSpeechRecognition({
 
   const reset = useCallback(() => {
     clearTimeout(timerRef.current);
+    lastEndRef.current = Date.now();
     recRef.current = null;
     setListening(false);
     setPhase("idle");
@@ -104,6 +110,7 @@ export function useSpeechRecognition({
 
   /** Termina la escucha; si el navegador no avisa que terminó (pasa en el celular), se fuerza el cierre. */
   const stop = useCallback(() => {
+    stoppingRef.current = true;
     clearTimeout(timerRef.current);
     const rec = recRef.current;
     if (!rec) {
@@ -124,9 +131,10 @@ export function useSpeechRecognition({
   }, [reset]);
 
   const begin = useCallback(
-    (Ctor: RecognitionCtor) => {
+    (Ctor: RecognitionCtor, attempt: number) => {
       let gotFinal = false;
       let failed = false;
+      let retry = false;
       let lastInterim = "";
 
       const rec = new Ctor();
@@ -167,6 +175,11 @@ export function useSpeechRecognition({
       rec.onerror = (e) => {
         if (recRef.current !== rec) return;
         note(`error: ${e.error}`);
+        // Los celulares a veces cancelan la sesión recién abierta («aborted»): se reintenta una vez, en silencio.
+        if (e.error === "aborted" && !stoppingRef.current && !gotFinal && !lastInterim && attempt < 2) {
+          retry = true;
+          return;
+        }
         failed = true;
         if (e.error !== "aborted") setError(ERRORS[e.error] ?? `No se pudo usar el reconocimiento de voz (${e.error}).`);
       };
@@ -174,6 +187,13 @@ export function useSpeechRecognition({
         // Una sesión vieja no debe cerrar la nueva.
         if (recRef.current !== rec) return;
         note("fin");
+        if (retry) {
+          // Se vuelve a abrir tras una pausa; la pantalla sigue en «escuchando».
+          recRef.current = null;
+          note("reintentando");
+          timerRef.current = setTimeout(() => beginRef.current?.(Ctor, attempt + 1), 600);
+          return;
+        }
         reset();
         // En algunos celulares la escucha termina sin resultado final: se usa lo último que se alcanzó a oír.
         if (!gotFinal && lastInterim) resultRef.current([lastInterim]);
@@ -203,13 +223,19 @@ export function useSpeechRecognition({
     [lang, note, reset, stop],
   );
 
+  useEffect(() => {
+    beginRef.current = begin;
+  }, [begin]);
+
   const start = useCallback(() => {
     const Ctor = getCtor();
     if (!Ctor) return;
     // Se descarta cualquier sesión anterior que haya quedado abierta.
     clearTimeout(timerRef.current);
+    const hadPrevious = recRef.current !== null;
     if (recRef.current) discard(recRef.current);
     recRef.current = null;
+    stoppingRef.current = false;
 
     setError(null);
     setInterim("");
@@ -218,11 +244,15 @@ export function useSpeechRecognition({
     setListening(true);
 
     // Si el teléfono sigue hablando la respuesta anterior, se calla y se espera a que libere el audio.
-    if (silenceSynthesis()) {
-      note("voz de respuesta cortada");
-      timerRef.current = setTimeout(() => begin(Ctor), 500);
+    const cutVoice = silenceSynthesis();
+    if (cutVoice) note("voz de respuesta cortada");
+    // Abrir una escucha justo después de cerrar otra hace que el celular cancele la nueva: se deja una pausa.
+    const sinceEnd = Date.now() - lastEndRef.current;
+    const wait = Math.max(cutVoice || hadPrevious ? 600 : 0, sinceEnd < 1200 ? 1200 - sinceEnd : 0);
+    if (wait > 0) {
+      timerRef.current = setTimeout(() => begin(Ctor, 0), wait);
     } else {
-      begin(Ctor);
+      begin(Ctor, 0);
     }
   }, [begin, note]);
 
