@@ -17,6 +17,9 @@ type Recognition = {
   onresult: ((e: RecognitionEvent) => void) | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
+  onaudiostart: (() => void) | null;
+  onspeechstart: (() => void) | null;
+  onnomatch: (() => void) | null;
 };
 type RecognitionCtor = new () => Recognition;
 
@@ -55,6 +58,8 @@ export function useSpeechRecognition({
   const [listening, setListening] = useState(false);
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<string | null>(null);
+  /** Qué está pasando: esperando que hables o ya detectando voz (sirve para saber si el micrófono capta). */
+  const [phase, setPhase] = useState<"idle" | "waiting" | "hearing">("idle");
   const recRef = useRef<Recognition | null>(null);
   const resultRef = useRef(onResult);
 
@@ -72,6 +77,7 @@ export function useSpeechRecognition({
         rec.abort();
         recRef.current = null;
         setListening(false);
+        setPhase("idle");
       }
     }, 1500);
   }, []);
@@ -84,14 +90,25 @@ export function useSpeechRecognition({
     if (previous) {
       recRef.current = null;
       previous.onresult = previous.onerror = previous.onend = null;
+      previous.onaudiostart = previous.onspeechstart = previous.onnomatch = null;
       try {
         previous.abort();
       } catch {
         /* ya estaba cerrada */
       }
     }
+    // Si el teléfono sigue hablando la respuesta anterior, el micrófono puede quedar bloqueado: se calla primero.
+    try {
+      window.speechSynthesis?.cancel();
+    } catch {
+      /* sin síntesis de voz */
+    }
     setError(null);
     setInterim("");
+    setPhase("waiting");
+    let gotFinal = false;
+    let lastInterim = "";
+    let failed = false;
 
     const rec = new Ctor();
     rec.lang = lang;
@@ -103,9 +120,11 @@ export function useSpeechRecognition({
       if (recRef.current !== rec) return;
       const last = e.results[e.results.length - 1];
       if (!last.isFinal) {
-        setInterim(last[0]?.transcript ?? "");
+        lastInterim = last[0]?.transcript ?? "";
+        setInterim(lastInterim);
         return;
       }
+      gotFinal = true;
       const alternatives = Array.from({ length: last.length }, (_, i) => last[i].transcript).filter(Boolean);
       setInterim(alternatives[0] ?? "");
       if (alternatives.length) resultRef.current(alternatives);
@@ -114,13 +133,26 @@ export function useSpeechRecognition({
     };
     rec.onerror = (e) => {
       if (recRef.current !== rec) return;
-      if (e.error !== "aborted") setError(ERRORS[e.error] ?? "No se pudo usar el reconocimiento de voz.");
+      failed = true;
+      if (e.error !== "aborted") setError(ERRORS[e.error] ?? `No se pudo usar el reconocimiento de voz (${e.error}).`);
+    };
+    rec.onaudiostart = () => recRef.current === rec && setPhase("waiting");
+    rec.onspeechstart = () => recRef.current === rec && setPhase("hearing");
+    rec.onnomatch = () => {
+      if (recRef.current === rec) setError("No se entendió. Habla claro y vuelve a intentar.");
     };
     rec.onend = () => {
       // Una sesión vieja no debe cerrar la nueva.
       if (recRef.current !== rec) return;
       recRef.current = null;
       setListening(false);
+      setPhase("idle");
+      // En algunos celulares la escucha termina sin resultado final: se usa lo último que se alcanzó a oír.
+      if (!gotFinal && lastInterim) {
+        resultRef.current([lastInterim]);
+      } else if (!gotFinal && !failed) {
+        setError("No se captó la voz. Toca el micrófono y habla de inmediato.");
+      }
     };
 
     recRef.current = rec;
@@ -130,11 +162,12 @@ export function useSpeechRecognition({
     } catch {
       recRef.current = null;
       setListening(false);
+      setPhase("idle");
     }
   }, [lang, stop]);
 
   // Libera el micrófono al salir de la pantalla.
   useEffect(() => () => recRef.current?.abort(), []);
 
-  return { supported, listening, interim, error, start, stop };
+  return { supported, listening, interim, error, phase, start, stop };
 }

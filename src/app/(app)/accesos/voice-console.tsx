@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useSpeechRecognition } from "@/components/use-speech-recognition";
 import { btnGhost, btnPrimary, btnSm, inputCls } from "@/components/ui";
 import { normalizePlate, parseSpokenCommand, spellPlate, type Direction } from "@/lib/plate";
+import { DirectionIcon } from "./direction-icon";
 import { submitPlate, undoAccess, type AccessResult } from "./actions";
 
 const kindLabel: Record<string, string> = { carro: "Carro", moto: "Moto", otro: "Vehículo" };
@@ -93,7 +94,7 @@ export function VoiceConsole() {
     [run],
   );
 
-  const { supported, listening, interim, error, start, stop } = useSpeechRecognition({ onResult: onSpoken });
+  const { supported, listening, interim, error, phase, start, stop } = useSpeechRecognition({ onResult: onSpoken });
 
   // Barra espaciadora = hablar (si no se está escribiendo en un campo).
   useEffect(() => {
@@ -124,10 +125,11 @@ export function VoiceConsole() {
                 // Sin foco en el botón, la barra espaciadora vuelve a activar el micrófono.
                 e.currentTarget.blur();
               }}
-              className={`cursor-pointer rounded-lg px-4 py-1.5 text-sm font-semibold transition-colors ${
+              className={`inline-flex cursor-pointer items-center gap-2 rounded-lg py-1.5 pl-2 pr-4 text-sm font-semibold transition-colors ${
                 mode === d ? "bg-primary text-on-primary" : "text-muted hover:text-ink"
               }`}
             >
+              <DirectionIcon direction={d} className="size-6" />
               {d === "ingreso" ? "Ingreso" : "Salida"}
             </button>
           ))}
@@ -151,7 +153,7 @@ export function VoiceConsole() {
               </svg>
             </button>
             <p className="text-sm font-semibold text-ink" aria-live="polite">
-              {listening ? "Escuchando… di «ingresa placa» y la placa" : pending ? "Verificando…" : "Toca el micrófono o presiona la barra espaciadora"}
+              {listening ? (phase === "hearing" ? "Te escucho…" : "Habla ahora: «ingreso» o «salida» y la placa") : pending ? "Verificando…" : "Toca el micrófono o presiona la barra espaciadora"}
             </p>
             {(listening ? interim : heard) && (
               <p className="max-w-md rounded-lg bg-surface-2 px-3 py-1.5 text-sm text-muted">
@@ -201,7 +203,8 @@ export function VoiceConsole() {
 
       {result && (
         <div role="status" className={`rounded-xl border-2 p-4 md:p-5 ${tone[result.status]}`}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+            <DirectionIcon direction={result.direction} className="size-7" />
             {result.direction === "ingreso" ? "Ingreso" : "Salida"} · {result.method === "voz" ? "por voz" : "manual"}
           </p>
           <p className="mt-1 text-2xl font-bold text-ink">{heading[result.status]}</p>

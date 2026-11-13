@@ -52,6 +52,15 @@ describe("parseSpokenCommand", () => {
     },
   );
 
+  it.each(["salida ABC123", "Salida abc 123", "salida a b c 1 2 3", "salida a be ce uno dos tres", "Salida, A B C, 1 2 3"])(
+    "entiende «salida <placa>» sin decir «placa»: %s",
+    (phrase) => {
+      const r = first(phrase);
+      expect(r.direction).toBe("salida");
+      expect(r.plates[0]).toBe("ABC123");
+    },
+  );
+
   it("sin orden hablada, la dirección queda sin definir", () => {
     const r = first("placa ABC123");
     expect(r.direction).toBeNull();

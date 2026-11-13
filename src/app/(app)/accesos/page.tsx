@@ -5,6 +5,7 @@ import { getProfile, isStaff, unitLabel } from "@/lib/auth";
 import { bogotaToIso, fmtTime, todayBogota } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { undoAccessForm } from "./actions";
+import { DirectionIcon } from "./direction-icon";
 import { VoiceConsole } from "./voice-console";
 
 export const metadata: Metadata = { title: "Accesos" };
@@ -68,12 +69,15 @@ async function AccesosContent() {
           <ul className="divide-y divide-line">
             {rows.map((r) => (
               <li key={r.id} className={`flex flex-wrap items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0 ${r.voided_at ? "opacity-55" : ""}`}>
-                <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-3">
+                  <DirectionIcon direction={r.direction} className="size-8" />
+                  <div className="min-w-0">
                   <p className="font-mono text-base font-bold tracking-widest text-ink">{r.plate}</p>
                   <p className="text-xs text-muted">
                     {fmtTime(r.at)} · {r.direction === "ingreso" ? "Ingreso" : "Salida"} · {r.units ? unitLabel(r.units) : "Sin unidad"} ·{" "}
                     {r.method === "voz" ? "voz" : "manual"}
                   </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {r.voided_at ? <Badge>Anulado</Badge> : <Badge tone={resultTone[r.result]}>{resultLabel[r.result]}</Badge>}
