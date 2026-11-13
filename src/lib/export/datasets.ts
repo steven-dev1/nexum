@@ -320,4 +320,56 @@ export const DATASETS: Dataset[] = [
   },
 ];
 
+export const SUPPORT_DATASET: Dataset = {
+  key: "ayuda",
+  label: "Solicitudes de ayuda",
+  description: "Solicitudes enviadas en el rango: quién, tipo, destino, estado y cuántos mensajes tienen.",
+  access: "admin",
+  ranged: true,
+  columns: [
+    { header: "Fecha", width: 20 },
+    { header: "Persona", width: 28 },
+    { header: "Tipo", width: 20 },
+    { header: "Dirigida a", width: 26 },
+    { header: "Asunto", width: 40 },
+    { header: "Estado", width: 12 },
+    { header: "Mensajes", width: 10 },
+    { header: "Última actividad", width: 20 },
+  ],
+  async load(supabase, range) {
+    const rows = await paged<{ id: string; user_id: string; kind: string; target: string; subject: string; status: string; created_at: string; updated_at: string }>(
+      (a, b) =>
+        supabase
+          .from("support_tickets")
+          .select("id, user_id, kind, target, subject, status, created_at, updated_at")
+          .gte("created_at", range.fromIso)
+          .lt("created_at", range.toIso)
+          .order("created_at")
+          .order("id")
+          .range(a, b),
+    );
+    if (rows.length === 0) return [];
+    const ids = [...new Set(rows.map((r) => r.user_id))];
+    const [people, messages] = await Promise.all([
+      paged<{ id: string; full_name: string; email: string | null }>((a, b) =>
+        supabase.from("profiles").select("id, full_name, email").in("id", ids.slice(0, 1000)).order("id").range(a, b),
+      ),
+      paged<{ ticket_id: string }>((a, b) =>
+        supabase.from("support_messages").select("ticket_id").in("ticket_id", rows.map((r) => r.id).slice(0, 1000)).order("created_at").range(a, b),
+      ),
+    ]);
+    const name = new Map(people.map((p) => [p.id, p.full_name || p.email || "Usuario"]));
+    const count = new Map<string, number>();
+    for (const m of messages) count.set(m.ticket_id, (count.get(m.ticket_id) ?? 0) + 1);
+    const STATUS: Record<string, string> = { abierta: "Abierta", en_curso: "En curso", resuelta: "Resuelta" };
+    const KINDS: Record<string, string> = { problema: "Problema", ayuda: "Ayuda", sugerencia: "Sugerencia" };
+    const TARGET: Record<string, string> = { administracion: "Administración del conjunto", soporte_tecnico: "Soporte técnico" };
+    return rows.map((r) => [
+      when(r.created_at), name.get(r.user_id) ?? "", KINDS[r.kind] ?? r.kind, TARGET[r.target] ?? r.target,
+      r.subject, STATUS[r.status] ?? r.status, count.get(r.id) ?? 0, when(r.updated_at),
+    ]);
+  },
+};
+DATASETS.push(SUPPORT_DATASET);
+
 export const findDataset = (key: string) => DATASETS.find((d) => d.key === key);

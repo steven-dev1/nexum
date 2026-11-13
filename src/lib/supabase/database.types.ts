@@ -352,6 +352,80 @@ export interface Database {
           },
         ];
       };
+      support_messages: {
+        Row: {
+          author_id: string;
+          body: string;
+          created_at: string;
+          from_staff: boolean;
+          id: string;
+          ticket_id: string;
+        };
+        Insert: {
+          author_id?: string;
+          body: string;
+          created_at?: string;
+          from_staff?: boolean;
+          id?: string;
+          ticket_id: string;
+        };
+        Update: {
+          author_id?: string;
+          body?: string;
+          created_at?: string;
+          from_staff?: boolean;
+          id?: string;
+          ticket_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey";
+            columns: ["ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "support_tickets";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      support_tickets: {
+        Row: {
+          context: Json;
+          created_at: string;
+          id: string;
+          kind: string;
+          photo_path: string | null;
+          status: string;
+          subject: string;
+          target: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          context?: Json;
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          photo_path?: string | null;
+          status?: string;
+          subject: string;
+          target?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Update: {
+          context?: Json;
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          photo_path?: string | null;
+          status?: string;
+          subject?: string;
+          target?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       units: {
         Row: {
           floor: number | null;

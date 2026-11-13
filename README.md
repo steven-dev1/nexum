@@ -129,6 +129,19 @@ horario, máx. 72 h).
 - El **documento** del visitante se guarda aparte (`visit_private`), solo lo ve el personal y debe borrarse a los 90 días
   (Ley 1581 de 2012). Para escanear el QR se necesita permiso de cámara y HTTPS.
 
+## Centro de ayuda
+
+El botón **Ayuda** (menú lateral y «Más» en el celular) abre un formulario para **pedir ayuda, reportar un problema o enviar
+una sugerencia**, dirigida a la *Administración del conjunto* o a *Soporte técnico de Nexum*, con una captura opcional. La
+solicitud lleva sola la sección, el tipo de dispositivo y la versión (nunca contraseñas ni lo escrito en otros formularios).
+
+- La persona ve sus solicitudes y las respuestas en **Mis solicitudes** (`/ayuda`); la administración las atiende en
+  **Administración → Soporte** (estados *abierta / en curso / resuelta*; responder pasa a «en curso» y si la persona vuelve a
+  escribir en una resuelta, se reabre). Todo llega por notificación push (y WhatsApp si lo activó).
+- Las de *Soporte técnico* se reenvían además a un canal externo si defines `SUPPORT_WEBHOOK_URL` (Slack, Discord, correo por
+  webhook…). Con `NEXT_PUBLIC_SUPPORT_WHATSAPP` (solo dígitos, con indicativo) aparece un enlace directo a WhatsApp.
+- Requiere `SUPABASE_SECRET_KEY` para avisar a los administradores cuando llega una solicitud.
+
 ## Resumen y reportes (administración)
 
 - **Resumen** (`/admin`): indicadores del conjunto en una sola consulta (`admin_summary`, solo administración): paquetes por

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { AdminNavLink, AppNav, RoleNavLink } from "@/components/app-nav";
 import { BackgroundRefresh } from "@/components/background-refresh";
 import { Brand } from "@/components/brand";
+import { HelpButton } from "@/components/help-button";
 import { ConnectionStatus } from "@/components/connection-status";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { PushToggle } from "@/components/push-toggle";
@@ -91,6 +92,7 @@ async function MobileAccount() {
     <div className="space-y-3">
       <PushToggle vapidPublicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY} />
       <WhatsappSettings />
+      <HelpButton className="w-full" whatsapp={process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP} />
       <div className="rounded-2xl border border-line bg-bg p-4">
         <div className="flex items-center gap-3">
           <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-base font-bold text-on-primary">
@@ -154,6 +156,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
             <Suspense fallback={null}>
               <WhatsappSettings />
             </Suspense>
+            <HelpButton className="w-full" whatsapp={process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP} />
           </div>
           <Suspense fallback={<div className="mb-3 h-20 rounded-lg bg-surface-2" />}>
             <UserCard />

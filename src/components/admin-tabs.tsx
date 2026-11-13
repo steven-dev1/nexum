@@ -10,6 +10,7 @@ const tabs = [
   { href: "/admin/invitaciones", label: "Invitaciones" },
   { href: "/admin/zonas", label: "Zonas comunes" },
   { href: "/admin/reportes", label: "Reportes" },
+  { href: "/admin/soporte", label: "Soporte" },
 ] as { href: string; label: string; exact?: boolean }[];
 
 /** Control segmentado (sin scroll horizontal): cabe completo incluso en celular. */

@@ -14,6 +14,8 @@ const TABLES = [
   "reservations",
   "vehicle_access_log",
   "visits",
+  "support_tickets",
+  "support_messages",
 ] as const;
 
 /** Qué tablas le importan a cada sección: así un cambio ajeno no recarga pantallas que no lo muestran. */
@@ -24,6 +26,8 @@ const RELEVANT: Record<string, readonly string[]> = {
   "/reservas": ["reservations"],
   "/accesos": ["vehicle_access_log", "visits"],
   "/visitas": ["visits"],
+  "/ayuda": ["support_tickets", "support_messages"],
+  "/admin/soporte": ["support_tickets", "support_messages"],
 };
 
 const relevantFor = (pathname: string): readonly string[] => {

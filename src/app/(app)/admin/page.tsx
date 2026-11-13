@@ -83,6 +83,11 @@ async function ResumenContent({ searchParams }: { searchParams: PageProps<"/admi
   const supabase = await createClient();
   const { data } = await supabase.rpc("admin_summary", { p_days: days });
   const s = parseSummary(data);
+  // Solicitudes de ayuda pendientes (no van en la función del resumen: son una consulta simple).
+  const { count: openTickets } = await supabase
+    .from("support_tickets")
+    .select("id", { count: "exact", head: true })
+    .neq("status", "resuelta");
 
   if (!s) {
     return (
@@ -96,6 +101,7 @@ async function ResumenContent({ searchParams }: { searchParams: PageProps<"/admi
     { label: "Residentes sin unidad asignada", value: s.users.withoutUnit, href: "/admin/usuarios?rol=sin-unidad" },
     { label: "Comunicados programados", value: s.announcements.scheduled, href: "/comunicados" },
     { label: "Comunicados en borrador", value: s.announcements.drafts, href: "/comunicados" },
+    { label: "Solicitudes de ayuda pendientes", value: openTickets ?? 0, href: "/admin/soporte" },
     { label: "Accesos de vehículos rechazados en el período", value: s.access.denied, href: "/accesos" },
   ].filter((r) => r.value > 0);
 
