@@ -17,7 +17,7 @@ export default function AdminLayout({ children }: LayoutProps<"/admin">) {
     <>
       <PageHeader
         title="Administración"
-        description="Usuarios, unidades y zonas comunes del conjunto."
+        description="Resumen del conjunto, usuarios, unidades y zonas comunes."
       />
       <AdminTabs />
       <Suspense fallback={<PageSkeleton />}>

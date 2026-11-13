@@ -129,6 +129,17 @@ horario, máx. 72 h).
 - El **documento** del visitante se guarda aparte (`visit_private`), solo lo ve el personal y debe borrarse a los 90 días
   (Ley 1581 de 2012). Para escanear el QR se necesita permiso de cámara y HTTPS.
 
+## Resumen y reportes (administración)
+
+- **Resumen** (`/admin`): indicadores del conjunto en una sola consulta (`admin_summary`, solo administración): paquetes por
+  entregar, reservas, vehículos y visitantes dentro, visitas esperando al residente, comunicados y su lectura media,
+  votaciones abiertas con su participación, gráficas por día (7 o 30 días) y una lista «Para revisar».
+- **Reportes** (`/admin/reportes`): exporta a **Excel o PDF** usuarios, paquetes, reservas, bitácora de vehículos, visitas,
+  resultados de votaciones y lectura de comunicados, con rango de fechas (máx. 366 días y 10 000 filas). El servidor
+  usa la sesión de quien descarga (la RLS sigue aplicando) y la bitácora de vehículos también la exporta portería
+  (`GET /api/export/<reporte>?format=xlsx|pdf&desde=AAAA-MM-DD&hasta=AAAA-MM-DD`). Los documentos de visitantes nunca
+  se exportan.
+
 ## Tiempo real y modo sin conexión
 
 - **Tiempo real**: la pantalla se actualiza sola cuando alguien crea o cambia algo que puedes ver (paquetes, comunicados,

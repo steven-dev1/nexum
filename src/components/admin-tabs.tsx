@@ -4,20 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
+  { href: "/admin", label: "Resumen", exact: true },
   { href: "/admin/usuarios", label: "Usuarios" },
   { href: "/admin/unidades", label: "Unidades" },
   { href: "/admin/invitaciones", label: "Invitaciones" },
   { href: "/admin/zonas", label: "Zonas comunes" },
-];
+  { href: "/admin/reportes", label: "Reportes" },
+] as { href: string; label: string; exact?: boolean }[];
 
 /** Control segmentado (sin scroll horizontal): cabe completo incluso en celular. */
 export function AdminTabs() {
   const pathname = usePathname();
   return (
     <nav aria-label="Administración" className="mb-6">
-      <ul className="grid grid-cols-2 gap-1 sm:grid-cols-4 rounded-xl border border-line bg-surface-2 p-1 sm:inline-grid sm:w-auto">
+      <ul className="grid grid-cols-2 gap-1 rounded-xl border border-line bg-surface-2 p-1 sm:inline-flex sm:w-auto">
         {tabs.map((t) => {
-          const active = pathname.startsWith(t.href);
+          const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
           return (
             <li key={t.href}>
               <Link

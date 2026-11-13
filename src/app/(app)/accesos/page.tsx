@@ -99,7 +99,21 @@ async function AccesosContent({ searchParams }: { searchParams: PageProps<"/acce
       <VoiceConsole />
 
       <Card>
-        <SectionTitle>Movimientos de hoy</SectionTitle>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <SectionTitle>Movimientos de hoy</SectionTitle>
+          <p className="text-xs text-muted">
+            Exportar últimos 30 días:{" "}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- descarga de archivo, no una página */}
+            <a href="/api/export/accesos?format=xlsx" className="font-semibold text-primary-ink hover:underline">
+              Excel
+            </a>{" "}
+            ·{" "}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- descarga de archivo, no una página */}
+            <a href="/api/export/accesos?format=pdf" className="font-semibold text-primary-ink hover:underline">
+              PDF
+            </a>
+          </p>
+        </div>
         {rows.length === 0 ? (
           <Empty>Aún no hay movimientos hoy.</Empty>
         ) : (

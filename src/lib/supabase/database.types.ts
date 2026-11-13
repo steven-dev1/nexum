@@ -885,6 +885,19 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      export_announcement_reads: {
+        Args: { p_from: string; p_to: string };
+        Returns: {
+          audience: string;
+          edited_at: string | null;
+          published_at: string;
+          readers: number;
+          recipients: number;
+          title: string;
+          tower: string | null;
+        }[];
+      };
+      admin_summary: { Args: { p_days?: number }; Returns: Json };
       cancel_visit: { Args: { p_id: string }; Returns: Json };
       check_in_visit: { Args: { p_ref: string }; Returns: Json };
       check_out_visit: { Args: { p_id: string }; Returns: Json };
